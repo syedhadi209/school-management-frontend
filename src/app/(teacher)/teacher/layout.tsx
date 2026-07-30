@@ -3,14 +3,16 @@ import { PortalShell } from "@/components/portal-shell";
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   return (
     <PortalShell
-      title="Teacher Portal"
+      title="Teacher"
+      heading="Dashboard"
+      subheading="Your classes, students, and pending tasks."
       links={[
-        { href: "/teacher", label: "Dashboard" },
-        { href: "/teacher/marks", label: "Mark Entry" },
+        { href: "/teacher", label: "Dashboard", icon: "dashboard" },
+        { href: "/teacher/students", label: "My Students", icon: "students" },
+        { href: "/teacher/marks", label: "Mark Entry", icon: "marks" },
       ]}
     >
       {children}
     </PortalShell>
   );
 }
-

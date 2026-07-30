@@ -2,6 +2,6 @@
 
 import { StudentsManager } from "@/components/students/students-manager";
 
-export default function SchoolAdminStudentsPage() {
+export default function ManagerStudentsPage() {
   return <StudentsManager mode="full" />;
 }

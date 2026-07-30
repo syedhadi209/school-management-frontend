@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const protectedPrefixes = ["/school-admin", "/manager", "/teacher", "/parent", "/super-admin"];
+const rolePrefixMap: Record<string, string> = {
+  super_admin: "/super-admin",
+  manager: "/manager",
+  teacher: "/teacher",
+  parent: "/parent",
+  school_admin: "/school-admin",
+  accountant: "/school-admin",
+  front_desk: "/school-admin",
+  student: "/parent",
+};
 
 function decodeRole(token: string): string | null {
   try {
@@ -25,19 +35,22 @@ export function middleware(request: NextRequest) {
   if (!accessToken) return NextResponse.next();
   const role = decodeRole(accessToken);
   if (!role) return NextResponse.next();
+  const allowedPrefix = rolePrefixMap[role] ?? "/school-admin";
+
+  if (
+    pathname.startsWith("/school-admin") ||
+    pathname.startsWith("/manager") ||
+    pathname.startsWith("/teacher") ||
+    pathname.startsWith("/parent") ||
+    pathname.startsWith("/super-admin")
+  ) {
+    if (!pathname.startsWith(allowedPrefix)) {
+      return NextResponse.redirect(new URL(allowedPrefix, request.url));
+    }
+  }
 
   if (pathname === "/auth/login" || pathname === "/auth/register") {
-    const destination =
-      role === "super_admin"
-        ? "/super-admin"
-        : role === "manager"
-          ? "/manager"
-          : role === "teacher"
-            ? "/teacher"
-            : role === "parent"
-              ? "/parent"
-              : "/school-admin";
-    return NextResponse.redirect(new URL(destination, request.url));
+    return NextResponse.redirect(new URL(allowedPrefix, request.url));
   }
   return NextResponse.next();
 }

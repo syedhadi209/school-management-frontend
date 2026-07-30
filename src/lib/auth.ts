@@ -38,3 +38,11 @@ export function getRoleFromJwt(token: string): Role | null {
   }
 }
 
+export function getDefaultRouteForRole(role: Role | null): string {
+  if (role === "super_admin") return "/super-admin";
+  if (role === "manager") return "/manager";
+  if (role === "teacher") return "/teacher";
+  if (role === "parent") return "/parent";
+  return "/school-admin";
+}
+
