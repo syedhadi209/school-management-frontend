@@ -32,7 +32,8 @@ function buildQueryParams(params: ListParams = {}) {
 const FIELD_LABELS: Record<string, string> = {
   non_field_errors: "",
   class_level: "Class",
-  class_teacher: "Class teacher",
+  class_teacher: "Class incharge",
+  teachers: "Assigned teachers",
   academic_year: "Academic year",
   fee_structure: "Fee structure",
   date_of_birth: "Date of birth",
@@ -49,6 +50,13 @@ const FIELD_LABELS: Record<string, string> = {
   interested_class_level: "Interested class",
   preferred_section: "Preferred section",
   rejection_reason: "Rejection reason",
+  monthly_salary: "Monthly salary",
+  phone_number: "Phone number",
+  cnic: "CNIC",
+  subjects_taught: "Subjects taught",
+  designation: "Designation",
+  shift_start_time: "Shift start time",
+  shift_end_time: "Shift end time",
 };
 
 function humanizeField(field: string) {

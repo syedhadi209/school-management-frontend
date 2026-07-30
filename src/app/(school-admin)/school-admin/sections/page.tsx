@@ -24,6 +24,8 @@ type Section = {
   class_level_name?: string;
   class_teacher: number | null;
   class_teacher_name?: string;
+  teachers?: number[];
+  teacher_names?: string[];
   shift: string;
   capacity: number;
   student_count: number;
@@ -33,6 +35,7 @@ type SectionPayload = {
   name: string;
   class_level: number | null;
   class_teacher: number | null;
+  teachers: number[];
   shift: string;
   capacity: number;
 };
@@ -48,6 +51,7 @@ const emptyPayload: SectionPayload = {
   name: "",
   class_level: null,
   class_teacher: null,
+  teachers: [],
   shift: "daily",
   capacity: 30,
 };
@@ -87,10 +91,23 @@ export default function SchoolAdminSectionsPage() {
       name: section.name,
       class_level: section.class_level,
       class_teacher: section.class_teacher,
+      teachers: section.teachers ?? [],
       shift: section.shift,
       capacity: section.capacity,
     });
     setIsModalOpen(true);
+  }
+
+  function toggleTeacher(teacherId: number) {
+    setPayload((prev) => {
+      const exists = prev.teachers.includes(teacherId);
+      const teachers = exists
+        ? prev.teachers.filter((id) => id !== teacherId)
+        : [...prev.teachers, teacherId];
+      const class_teacher =
+        prev.class_teacher && !teachers.includes(prev.class_teacher) ? null : prev.class_teacher;
+      return { ...prev, teachers, class_teacher };
+    });
   }
 
   async function handleSubmit() {
@@ -102,7 +119,7 @@ export default function SchoolAdminSectionsPage() {
       setFormError(
         levels.length === 0
           ? "This school has no classes yet. Create a class first, then add sections like A and B."
-          : "Choose which class this section belongs to, for example Class 1.",
+          : "Choose which class this section belongs to, for example Class 1."
       );
       return;
     }
@@ -110,13 +127,24 @@ export default function SchoolAdminSectionsPage() {
       setFormError("Maximum students must be at least 1.");
       return;
     }
+    if (payload.class_teacher && !payload.teachers.includes(payload.class_teacher)) {
+      setFormError("The class incharge must also be one of the assigned teachers.");
+      return;
+    }
 
     setFormError(null);
     try {
+      const body = {
+        ...payload,
+        teachers:
+          payload.class_teacher && !payload.teachers.includes(payload.class_teacher)
+            ? [...payload.teachers, payload.class_teacher]
+            : payload.teachers,
+      };
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload });
+        await updateMutation.mutateAsync({ id: editing.id, payload: body });
       } else {
-        await createMutation.mutateAsync(payload);
+        await createMutation.mutateAsync(body);
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -133,15 +161,15 @@ export default function SchoolAdminSectionsPage() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Sections sit inside a class. For example, Class 1 can have sections A, B, and C — each with its own capacity and
-        teacher.
+        Sections sit inside a class. Each section can have several teachers, and optionally one class incharge.
+        The same teacher can also teach in more than one section.
       </p>
 
       <DataTableShell
         title="Sections"
         count={total}
         searchValue={search}
-        searchPlaceholder="Search sections by name"
+        searchPlaceholder="Search sections by name or teacher"
         onSearchChange={(value) => {
           setSearch(value);
           setPage(1);
@@ -156,7 +184,8 @@ export default function SchoolAdminSectionsPage() {
               <TableHead>Capacity</TableHead>
               <TableHead>Class</TableHead>
               <TableHead>Schedule</TableHead>
-              <TableHead>Teacher</TableHead>
+              <TableHead>Class incharge</TableHead>
+              <TableHead>Teachers</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -169,7 +198,23 @@ export default function SchoolAdminSectionsPage() {
                 </TableCell>
                 <TableCell>{section.class_level_name || "-"}</TableCell>
                 <TableCell className="uppercase">{section.shift}</TableCell>
-                <TableCell>{section.class_teacher_name || "-"}</TableCell>
+                <TableCell>{section.class_teacher_name || "—"}</TableCell>
+                <TableCell>
+                  {section.teacher_names?.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {section.teacher_names.map((name) => (
+                        <span
+                          key={name}
+                          className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
                     <button
@@ -192,7 +237,7 @@ export default function SchoolAdminSectionsPage() {
             ))}
             {sections.length === 0 && !listQuery.isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   {levels.length === 0 ? (
                     <>
                       Add a{" "}
@@ -222,11 +267,12 @@ export default function SchoolAdminSectionsPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         title={editing ? "Edit Section" : "Create Section"}
-        description="Choose the parent class, then set the section letter, capacity, schedule, and teacher."
+        description="Choose the parent class, assign teachers, and optionally pick a class incharge."
         submitLabel={editing ? "Save Changes" : "Create Section"}
         loading={createMutation.isPending || updateMutation.isPending}
         error={formError}
         onSubmit={handleSubmit}
+        contentClassName="sm:max-w-2xl"
       >
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField
@@ -281,31 +327,86 @@ export default function SchoolAdminSectionsPage() {
               onChange={(e) => setPayload((p) => ({ ...p, capacity: Number(e.target.value) || 0 }))}
             />
           </FormField>
-          <FormField label="Class teacher" hint="Optional. You can assign or change the teacher later.">
-            <Select
-              value={payload.class_teacher ?? ""}
-              onChange={(e) =>
-                setPayload((p) => ({ ...p, class_teacher: e.target.value ? Number(e.target.value) : null }))
-              }
-            >
-              <option value="">No teacher assigned</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.full_name || teacher.email || `Teacher ${teacher.id}`}
-                </option>
-              ))}
-            </Select>
-          </FormField>
           <FormField
             label="Meeting schedule"
             hint="Daily, Monday/Wednesday/Friday, or Tuesday/Thursday/Friday."
             required
-            className="sm:col-span-2"
           >
             <Select value={payload.shift} onChange={(e) => setPayload((p) => ({ ...p, shift: e.target.value }))}>
               <option value="daily">Daily</option>
               <option value="mwf">Monday, Wednesday & Friday (MWF)</option>
               <option value="tthf">Tuesday, Thursday & Friday (TTHF)</option>
+            </Select>
+          </FormField>
+
+          <FormField
+            label="Assigned teachers"
+            hint="Select every teacher who teaches in this section. One teacher can be assigned to many sections."
+            className="sm:col-span-2"
+          >
+            {teachers.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                No teachers yet.{" "}
+                <Link href="/school-admin/teachers" className="font-semibold text-primary underline underline-offset-2">
+                  Add teachers first
+                </Link>
+                .
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {teachers.map((teacher) => {
+                  const checked = payload.teachers.includes(teacher.id);
+                  const label = teacher.full_name || teacher.email || `Teacher ${teacher.id}`;
+                  return (
+                    <label
+                      key={teacher.id}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors",
+                        checked ? "border-primary/40 bg-primary/10" : "border-border hover:bg-muted/40"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleTeacher(teacher.id)}
+                        className="size-4 rounded border-input"
+                      />
+                      <span className="font-medium">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </FormField>
+
+          <FormField
+            label="Class incharge"
+            hint="Optional. The teacher responsible for this section as class incharge."
+            className="sm:col-span-2"
+          >
+            <Select
+              value={payload.class_teacher ?? ""}
+              onChange={(e) => {
+                const classTeacher = e.target.value ? Number(e.target.value) : null;
+                setPayload((p) => ({
+                  ...p,
+                  class_teacher: classTeacher,
+                  teachers:
+                    classTeacher && !p.teachers.includes(classTeacher)
+                      ? [...p.teachers, classTeacher]
+                      : p.teachers,
+                }));
+              }}
+            >
+              <option value="">No class incharge</option>
+              {(payload.teachers.length
+                ? teachers.filter((teacher) => payload.teachers.includes(teacher.id))
+                : teachers
+              ).map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.full_name || teacher.email || `Teacher ${teacher.id}`}
+                </option>
+              ))}
             </Select>
           </FormField>
         </div>
