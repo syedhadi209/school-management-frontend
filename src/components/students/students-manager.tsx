@@ -3,13 +3,18 @@
 import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
-import { createCrudHooks, extractApiErrorMessage } from "@/lib/crud";
+import { createCrudHooks, extractApiErrorFields, extractApiErrorMessage } from "@/lib/crud";
 import { DataTableShell } from "@/components/data/data-table";
 import { FormField } from "@/components/data/form-field";
 import { StatusTabs } from "@/components/data/status-tabs";
 import { TablePagination } from "@/components/data/table-pagination";
 import { FormModal } from "@/components/data/form-modal";
 import { ConfirmDialog } from "@/components/data/confirm-dialog";
+import {
+  EMPTY_FAMILY_DETAILS,
+  FAMILY_FIELD_KEYS,
+  FamilyDetailsFields,
+} from "@/components/students/family-details-fields";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,7 +42,17 @@ type Student = {
   roll_number: string;
   board_roll_number?: string;
   guardian_phone: string;
+  parent_alternate_phone?: string;
+  parent_email?: string;
+  parent_occupation?: string;
+  father_name?: string;
+  mother_name?: string;
+  father_cnic?: string;
+  mother_cnic?: string;
+  address?: string;
   gender: string;
+  date_of_birth?: string | null;
+  parent_invite_pending?: boolean;
 };
 
 type StudentPayload = {
@@ -47,7 +62,16 @@ type StudentPayload = {
   status: string;
   region: string;
   guardian_phone: string;
+  parent_alternate_phone: string;
+  parent_email: string;
+  parent_occupation: string;
+  father_name: string;
+  mother_name: string;
+  father_cnic: string;
+  mother_cnic: string;
+  address: string;
   gender: string;
+  date_of_birth: string;
   board_roll_number: string;
 };
 
@@ -70,6 +94,11 @@ const statusTabs = [
   { key: "archived", label: "Archive" },
 ];
 
+const CREATE_STEPS = [
+  { id: "student", label: "Student details" },
+  { id: "family", label: "Family details" },
+];
+
 const emptyStudent: StudentPayload = {
   first_name: "",
   last_name: "",
@@ -77,9 +106,40 @@ const emptyStudent: StudentPayload = {
   status: "active",
   region: "",
   guardian_phone: "",
+  parent_alternate_phone: "",
+  parent_email: "",
+  parent_occupation: "",
+  father_name: "",
+  mother_name: "",
+  father_cnic: "",
+  mother_cnic: "",
+  address: "",
   gender: "",
+  date_of_birth: "",
   board_roll_number: "",
 };
+
+function studentToPayload(student: Student): StudentPayload {
+  return {
+    first_name: student.first_name,
+    last_name: student.last_name,
+    section: student.section,
+    status: student.status,
+    region: student.region ?? "",
+    guardian_phone: student.guardian_phone ?? "",
+    parent_alternate_phone: student.parent_alternate_phone ?? "",
+    parent_email: student.parent_email ?? "",
+    parent_occupation: student.parent_occupation ?? "",
+    father_name: student.father_name ?? "",
+    mother_name: student.mother_name ?? "",
+    father_cnic: student.father_cnic ?? "",
+    mother_cnic: student.mother_cnic ?? "",
+    address: student.address ?? "",
+    gender: student.gender ?? "",
+    date_of_birth: student.date_of_birth ?? "",
+    board_roll_number: student.board_roll_number ?? "",
+  };
+}
 
 export function StudentsManager({
   mode = "full",
@@ -95,11 +155,15 @@ export function StudentsManager({
   const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [createStep, setCreateStep] = useState(0);
 
   const listQuery = studentHooks.useList(
     isTeacherMode ? { page, search } : { page, search, status }
   );
-  const sectionsQuery = sectionHooks.useList({ page: 1 }, { enabled: !isTeacherMode });
+  const sectionsQuery = sectionHooks.useList(
+    { page: 1, page_size: 200 },
+    { enabled: !isTeacherMode }
+  );
   const createMutation = studentHooks.useCreate({ successMessage: "Student created." });
   const updateMutation = studentHooks.useUpdate({ successMessage: "Student updated." });
   const deleteMutation = studentHooks.useDelete({ successMessage: "Student deleted." });
@@ -114,6 +178,9 @@ export function StudentsManager({
     Boolean(selectedSection?.is_board_class) ||
     (isTeacherMode && Boolean(editing?.is_board_class));
 
+  const isCreating = !editing && !isTeacherMode;
+  const showStepper = isCreating;
+
   const tabsWithCount = useMemo(() => {
     return statusTabs.map((tab) => ({
       ...tab,
@@ -125,23 +192,54 @@ export function StudentsManager({
     setEditing(null);
     setFormState(emptyStudent);
     setFormError(null);
+    setCreateStep(0);
     setIsModalOpen(true);
   }
 
   function openEdit(student: Student) {
     setEditing(student);
     setFormError(null);
-    setFormState({
-      first_name: student.first_name,
-      last_name: student.last_name,
-      section: student.section,
-      status: student.status,
-      region: student.region ?? "",
-      guardian_phone: student.guardian_phone ?? "",
-      gender: student.gender ?? "",
-      board_roll_number: student.board_roll_number ?? "",
-    });
+    setCreateStep(0);
+    setFormState(studentToPayload(student));
     setIsModalOpen(true);
+  }
+
+  function validateStudentStep(): string | null {
+    if (!formState.first_name.trim()) return "Enter the student's first name.";
+    if (!formState.last_name.trim()) return "Enter the student's last name.";
+    if (formState.board_roll_number.trim() && !showBoardRollField) {
+      return "Board roll numbers can only be set for students in a board examination class.";
+    }
+    return null;
+  }
+
+  function jumpToErrorStep(error: unknown) {
+    const fields = extractApiErrorFields(error);
+    if (fields.some((field) => (FAMILY_FIELD_KEYS as readonly string[]).includes(field))) {
+      setCreateStep(1);
+    } else if (fields.length) {
+      setCreateStep(0);
+    }
+  }
+
+  async function saveStudent() {
+    setFormError(null);
+    try {
+      const payload = {
+        ...formState,
+        date_of_birth: formState.date_of_birth || null,
+        board_roll_number: showBoardRollField ? formState.board_roll_number.trim() : "",
+      } as unknown as StudentPayload;
+      if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      if (showStepper) jumpToErrorStep(error);
+      setFormError(extractApiErrorMessage(error, "Could not save this student. Please try again."));
+    }
   }
 
   async function submitForm() {
@@ -164,40 +262,155 @@ export function StudentsManager({
       return;
     }
 
-    if (!formState.first_name.trim()) {
-      setFormError("Enter the student's first name.");
-      return;
-    }
-    if (!formState.last_name.trim()) {
-      setFormError("Enter the student's last name.");
-      return;
-    }
-    if (formState.board_roll_number.trim() && !showBoardRollField) {
-      setFormError("Board roll numbers can only be set for students in a board examination class.");
+    if (showStepper && createStep === 0) {
+      const stepError = validateStudentStep();
+      if (stepError) {
+        setFormError(stepError);
+        return;
+      }
+      setFormError(null);
+      setCreateStep(1);
       return;
     }
 
-    setFormError(null);
-    try {
-      const payload = {
-        ...formState,
-        board_roll_number: showBoardRollField ? formState.board_roll_number.trim() : "",
-      };
-      if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload });
-      } else {
-        await createMutation.mutateAsync(payload);
-      }
-      setIsModalOpen(false);
-    } catch (error) {
-      setFormError(extractApiErrorMessage(error, "Could not save this student. Please try again."));
+    const stepError = validateStudentStep();
+    if (stepError) {
+      setFormError(stepError);
+      if (showStepper) setCreateStep(0);
+      return;
     }
+
+    await saveStudent();
   }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
     await deleteMutation.mutateAsync(deleteTarget.id);
     setDeleteTarget(null);
+  }
+
+  function renderStudentFields() {
+    return (
+      <div className="grid gap-5 sm:grid-cols-2">
+        {editing ? (
+          <FormField label="Roll number" hint="Generated automatically and cannot be changed.">
+            <Input value={editing.roll_number || ""} disabled />
+          </FormField>
+        ) : (
+          <p className="rounded-xl border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
+            A unique school roll number will be created automatically, such as <strong>STU-2026-0001</strong>.
+          </p>
+        )}
+        {showBoardRollField ? (
+          <FormField
+            label="Board roll number"
+            hint="Optional until the board issues it. Must be unique within this school."
+            className={editing ? undefined : "sm:col-span-2"}
+          >
+            <Input
+              placeholder="e.g. 452187"
+              value={formState.board_roll_number}
+              onChange={(e) => setFormState((prev) => ({ ...prev, board_roll_number: e.target.value }))}
+            />
+          </FormField>
+        ) : null}
+        <FormField label="First name" required>
+          <Input
+            placeholder="e.g. Ahmed"
+            value={formState.first_name}
+            onChange={(e) => setFormState((prev) => ({ ...prev, first_name: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Last name" required>
+          <Input
+            placeholder="e.g. Khan"
+            value={formState.last_name}
+            onChange={(e) => setFormState((prev) => ({ ...prev, last_name: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Date of birth">
+          <Input
+            type="date"
+            value={formState.date_of_birth}
+            onChange={(e) => setFormState((prev) => ({ ...prev, date_of_birth: e.target.value }))}
+          />
+        </FormField>
+        <FormField label="Gender">
+          <Select
+            value={formState.gender}
+            onChange={(e) => setFormState((prev) => ({ ...prev, gender: e.target.value }))}
+          >
+            <option value="">Choose gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </Select>
+        </FormField>
+        <FormField label="Enrollment status" hint="Use Active for students currently attending." required>
+          <Select
+            value={formState.status}
+            onChange={(e) => setFormState((prev) => ({ ...prev, status: e.target.value }))}
+          >
+            <option value="active">Active</option>
+            <option value="pending">Pending admission</option>
+            <option value="waiting_list">Waiting list</option>
+            <option value="withdrawn">Withdrawn</option>
+            <option value="archived">Archived</option>
+            <option value="repeating">Repeating</option>
+          </Select>
+        </FormField>
+        <FormField label="Class & section" hint="Choose Class 1 - A, Class 2 - B, and so on.">
+          <Select
+            value={formState.section ?? ""}
+            onChange={(e) =>
+              setFormState((prev) => ({
+                ...prev,
+                section: e.target.value ? Number(e.target.value) : null,
+                board_roll_number: e.target.value
+                  ? sections.find((section) => section.id === Number(e.target.value))?.is_board_class
+                    ? prev.board_roll_number
+                    : ""
+                  : "",
+              }))
+            }
+          >
+            <option value="">Not assigned yet</option>
+            {sections.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.class_level_name ? `${section.class_level_name} - ` : ""}
+                {section.name}
+                {section.is_board_class ? " (Board)" : ""}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+      </div>
+    );
+  }
+
+  function renderFamilyFields() {
+    return (
+      <div className="space-y-4">
+        <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Family details are optional when adding a student directly. Parent email creates or links a parent
+          portal account; the invite email will be sent later.
+        </p>
+        {editing?.parent_invite_pending ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Parent portal account exists for <strong>{editing.parent_email}</strong>, but the invite has not been
+            sent yet so they cannot log in.
+          </p>
+        ) : null}
+        <FamilyDetailsFields
+          values={{
+            ...EMPTY_FAMILY_DETAILS,
+            ...formState,
+          }}
+          onChange={(patch) => setFormState((prev) => ({ ...prev, ...patch }))}
+          showOccupation
+        />
+      </div>
+    );
   }
 
   return (
@@ -329,7 +542,10 @@ export function StudentsManager({
 
       <FormModal
         open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) setCreateStep(0);
+        }}
         title={
           isTeacherMode
             ? "Update Board Roll Number"
@@ -340,12 +556,34 @@ export function StudentsManager({
         description={
           isTeacherMode
             ? "Enter the official board examination roll number issued for this student."
-            : "Enter the student's personal, contact, and enrollment details."
+            : editing
+              ? "Update the student's personal, enrollment, and family details."
+              : "Step through student details, then family details."
         }
-        submitLabel={editing || isTeacherMode ? "Save Changes" : "Create Student"}
+        submitLabel={
+          isTeacherMode || editing
+            ? "Save Changes"
+            : createStep === 0
+              ? "Next"
+              : "Create Student"
+        }
         loading={createMutation.isPending || updateMutation.isPending}
         error={formError}
         onSubmit={submitForm}
+        steps={showStepper ? CREATE_STEPS : undefined}
+        currentStep={createStep}
+        onStepChange={(index) => {
+          if (index < createStep) {
+            setFormError(null);
+            setCreateStep(index);
+          }
+        }}
+        showBack={showStepper && createStep > 0}
+        onBack={() => {
+          setFormError(null);
+          setCreateStep((step) => Math.max(0, step - 1));
+        }}
+        contentClassName="sm:max-w-2xl"
       >
         {isTeacherMode ? (
           <div className="grid gap-5">
@@ -375,109 +613,21 @@ export function StudentsManager({
               />
             </FormField>
           </div>
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2">
-            {editing ? (
-              <FormField label="Roll number" hint="Generated automatically and cannot be changed.">
-                <Input value={editing.roll_number || ""} disabled />
-              </FormField>
-            ) : (
-              <p className="rounded-xl border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
-                A unique school roll number will be created automatically, such as <strong>STU-2026-0001</strong>.
-              </p>
-            )}
-            {showBoardRollField ? (
-              <FormField
-                label="Board roll number"
-                hint="Optional until the board issues it. Must be unique within this school."
-                className={editing ? undefined : "sm:col-span-2"}
-              >
-                <Input
-                  placeholder="e.g. 452187"
-                  value={formState.board_roll_number}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, board_roll_number: e.target.value }))}
-                />
-              </FormField>
-            ) : null}
-            <FormField label="First name" required>
-              <Input
-                placeholder="e.g. Ahmed"
-                value={formState.first_name}
-                onChange={(e) => setFormState((prev) => ({ ...prev, first_name: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="Last name">
-              <Input
-                placeholder="e.g. Khan"
-                value={formState.last_name}
-                onChange={(e) => setFormState((prev) => ({ ...prev, last_name: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="City or region" hint="Used for student records and reporting.">
-              <Input
-                placeholder="e.g. Lahore"
-                value={formState.region}
-                onChange={(e) => setFormState((prev) => ({ ...prev, region: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="Guardian phone" hint="Include the area or country code where needed.">
-              <Input
-                type="tel"
-                placeholder="e.g. 0300 1234567"
-                value={formState.guardian_phone}
-                onChange={(e) => setFormState((prev) => ({ ...prev, guardian_phone: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="Gender">
-              <Select
-                value={formState.gender}
-                onChange={(e) => setFormState((prev) => ({ ...prev, gender: e.target.value }))}
-              >
-                <option value="">Choose gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </Select>
-            </FormField>
-            <FormField label="Enrollment status" hint="Use Active for students currently attending." required>
-              <Select
-                value={formState.status}
-                onChange={(e) => setFormState((prev) => ({ ...prev, status: e.target.value }))}
-              >
-                <option value="active">Active</option>
-                <option value="pending">Pending admission</option>
-                <option value="waiting_list">Waiting list</option>
-                <option value="withdrawn">Withdrawn</option>
-                <option value="archived">Archived</option>
-                <option value="repeating">Repeating</option>
-              </Select>
-            </FormField>
-            <FormField label="Class & section" hint="Choose Class 1 - A, Class 2 - B, and so on." className="sm:col-span-2">
-              <Select
-                value={formState.section ?? ""}
-                onChange={(e) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    section: e.target.value ? Number(e.target.value) : null,
-                    board_roll_number: e.target.value
-                      ? sections.find((section) => section.id === Number(e.target.value))?.is_board_class
-                        ? prev.board_roll_number
-                        : ""
-                      : "",
-                  }))
-                }
-              >
-                <option value="">Not assigned yet</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.class_level_name ? `${section.class_level_name} - ` : ""}
-                    {section.name}
-                    {section.is_board_class ? " (Board)" : ""}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
+        ) : editing ? (
+          <div className="space-y-8">
+            <div>
+              <h3 className="mb-3 text-sm font-bold">Student details</h3>
+              {renderStudentFields()}
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-bold">Family details</h3>
+              {renderFamilyFields()}
+            </div>
           </div>
+        ) : createStep === 0 ? (
+          renderStudentFields()
+        ) : (
+          renderFamilyFields()
         )}
       </FormModal>
 

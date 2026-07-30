@@ -83,8 +83,8 @@ export default function SchoolAdminFeesPage() {
 
   const feeQuery = feeHooks.useList({ page: feePage, search });
   const invoiceQuery = invoiceHooks.useList({ page: invoicePage, search });
-  const studentQuery = studentHooks.useList({ page: 1 });
-  const classLevelQuery = classLevelHooks.useList({ page: 1 });
+  const studentQuery = studentHooks.useList({ page: 1, page_size: 200 });
+  const classLevelQuery = classLevelHooks.useList({ page: 1, page_size: 200 });
 
   const createFee = feeHooks.useCreate({ successMessage: "Fee structure created." });
   const createInvoice = invoiceHooks.useCreate({ successMessage: "Invoice created." });

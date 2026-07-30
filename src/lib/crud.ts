@@ -37,11 +37,35 @@ const FIELD_LABELS: Record<string, string> = {
   fee_structure: "Fee structure",
   date_of_birth: "Date of birth",
   board_roll_number: "Board roll number",
+  father_name: "Father's name",
+  mother_name: "Mother's name",
+  father_cnic: "Father's CNIC",
+  mother_cnic: "Mother's CNIC",
+  parent_email: "Parent email",
+  parent_phone: "Parent phone",
+  guardian_phone: "Parent phone",
+  parent_alternate_phone: "Alternate phone",
+  parent_occupation: "Parent occupation",
+  interested_class_level: "Interested class",
+  preferred_section: "Preferred section",
+  rejection_reason: "Rejection reason",
 };
 
 function humanizeField(field: string) {
   if (field in FIELD_LABELS) return FIELD_LABELS[field];
   return field.replace(/_/g, " ").replace(/^./, (char) => char.toUpperCase());
+}
+
+/**
+ * Returns the field names present in a DRF validation error body.
+ * Useful for routing the user to the form step that owns the failing field.
+ */
+export function extractApiErrorFields(error: unknown): string[] {
+  const axiosError = error as AxiosError<unknown>;
+  const data = axiosError.response?.data;
+  if (!data || typeof data !== "object") return [];
+  const body = data as Record<string, unknown>;
+  return Object.keys(body).filter((key) => key !== "detail" && key !== "non_field_errors");
 }
 
 /**

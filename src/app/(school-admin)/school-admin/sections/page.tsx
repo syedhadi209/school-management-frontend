@@ -62,8 +62,8 @@ export default function SchoolAdminSectionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Section | null>(null);
 
   const listQuery = sectionHooks.useList({ page, search });
-  const levelsQuery = classLevelHooks.useList({ page: 1 });
-  const teachersQuery = teacherHooks.useList({ page: 1 });
+  const levelsQuery = classLevelHooks.useList({ page: 1, page_size: 200 });
+  const teachersQuery = teacherHooks.useList({ page: 1, page_size: 200 });
   const createMutation = sectionHooks.useCreate({ successMessage: "Section created." });
   const updateMutation = sectionHooks.useUpdate({ successMessage: "Section updated." });
   const deleteMutation = sectionHooks.useDelete({ successMessage: "Section deleted." });
