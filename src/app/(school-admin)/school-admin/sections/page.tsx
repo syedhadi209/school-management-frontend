@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Pencil, Trash2, X } from "lucide-react";
 
 import { createCrudHooks, extractApiErrorMessage } from "@/lib/crud";
 import { CapacityBar } from "@/components/data/capacity-bar";
@@ -12,7 +12,17 @@ import { FormField } from "@/components/data/form-field";
 import { FormModal } from "@/components/data/form-modal";
 import { TablePagination } from "@/components/data/table-pagination";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -56,6 +66,12 @@ const emptyPayload: SectionPayload = {
   capacity: 30,
 };
 
+const shiftLabels: Record<string, string> = {
+  daily: "Daily",
+  mwf: "Monday, Wednesday & Friday (MWF)",
+  tthf: "Tuesday, Thursday & Friday (TTHF)",
+};
+
 export default function SchoolAdminSectionsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -76,6 +92,10 @@ export default function SchoolAdminSectionsPage() {
   const total = listQuery.data?.count ?? 0;
   const levels = levelsQuery.data?.results ?? [];
   const teachers = teachersQuery.data?.results ?? [];
+
+  function teacherLabel(teacher: TeacherProfile) {
+    return teacher.full_name || teacher.email || `Teacher ${teacher.id}`;
+  }
 
   function openCreate() {
     setEditing(null);
@@ -292,19 +312,29 @@ export default function SchoolAdminSectionsPage() {
                 Add a class
               </Link>
             ) : (
-              <Select
-                value={payload.class_level ?? ""}
-                onChange={(e) =>
-                  setPayload((p) => ({ ...p, class_level: e.target.value ? Number(e.target.value) : null }))
-                }
-              >
-                <option value="">Choose a class</option>
-                {levels.map((level) => (
-                  <option key={level.id} value={level.id}>
-                    {level.name}
-                  </option>
-                ))}
-              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex h-9 w-full items-center justify-between rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                  <span className={cn(!payload.class_level && "text-muted-foreground")}>
+                    {levels.find((level) => level.id === payload.class_level)?.name ?? "Choose a class"}
+                  </span>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="max-h-72">
+                  <DropdownMenuRadioGroup
+                    value={payload.class_level ? String(payload.class_level) : ""}
+                    onValueChange={(value) =>
+                      setPayload((prev) => ({ ...prev, class_level: value ? Number(value) : null }))
+                    }
+                  >
+                    <DropdownMenuLabel>Select class</DropdownMenuLabel>
+                    {levels.map((level) => (
+                      <DropdownMenuRadioItem key={level.id} value={String(level.id)}>
+                        {level.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </FormField>
           <FormField label="Section name" hint="A short label such as A, B, or Morning." required>
@@ -332,11 +362,25 @@ export default function SchoolAdminSectionsPage() {
             hint="Daily, Monday/Wednesday/Friday, or Tuesday/Thursday/Friday."
             required
           >
-            <Select value={payload.shift} onChange={(e) => setPayload((p) => ({ ...p, shift: e.target.value }))}>
-              <option value="daily">Daily</option>
-              <option value="mwf">Monday, Wednesday & Friday (MWF)</option>
-              <option value="tthf">Tuesday, Thursday & Friday (TTHF)</option>
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex h-9 w-full items-center justify-between rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                <span>{shiftLabels[payload.shift] ?? payload.shift}</span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuRadioGroup
+                  value={payload.shift}
+                  onValueChange={(value) => setPayload((prev) => ({ ...prev, shift: value }))}
+                >
+                  <DropdownMenuLabel>Select schedule</DropdownMenuLabel>
+                  {Object.entries(shiftLabels).map(([value, label]) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </FormField>
 
           <FormField
@@ -353,28 +397,55 @@ export default function SchoolAdminSectionsPage() {
                 .
               </div>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {teachers.map((teacher) => {
-                  const checked = payload.teachers.includes(teacher.id);
-                  const label = teacher.full_name || teacher.email || `Teacher ${teacher.id}`;
-                  return (
-                    <label
-                      key={teacher.id}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors",
-                        checked ? "border-primary/40 bg-primary/10" : "border-border hover:bg-muted/40"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleTeacher(teacher.id)}
-                        className="size-4 rounded border-input"
-                      />
-                      <span className="font-medium">{label}</span>
-                    </label>
-                  );
-                })}
+              <div className="space-y-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex h-10 w-full items-center justify-between rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                    <span className={cn(payload.teachers.length === 0 && "text-muted-foreground")}>
+                      {payload.teachers.length === 0
+                        ? "Choose teachers"
+                        : `${payload.teachers.length} teacher${payload.teachers.length === 1 ? "" : "s"} selected`}
+                    </span>
+                    <ChevronDown className="size-4 text-muted-foreground" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="max-h-72">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Assigned teachers</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {teachers.map((teacher) => (
+                        <DropdownMenuCheckboxItem
+                          key={teacher.id}
+                          checked={payload.teachers.includes(teacher.id)}
+                          onCheckedChange={() => toggleTeacher(teacher.id)}
+                        >
+                          {teacherLabel(teacher)}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {payload.teachers.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {teachers
+                      .filter((teacher) => payload.teachers.includes(teacher.id))
+                      .map((teacher) => (
+                        <span
+                          key={teacher.id}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+                        >
+                          {teacherLabel(teacher)}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${teacherLabel(teacher)}`}
+                            className="rounded-full p-0.5 hover:bg-primary/15"
+                            onClick={() => toggleTeacher(teacher.id)}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                ) : null}
               </div>
             )}
           </FormField>
@@ -384,30 +455,46 @@ export default function SchoolAdminSectionsPage() {
             hint="Optional. The teacher responsible for this section as class incharge."
             className="sm:col-span-2"
           >
-            <Select
-              value={payload.class_teacher ?? ""}
-              onChange={(e) => {
-                const classTeacher = e.target.value ? Number(e.target.value) : null;
-                setPayload((p) => ({
-                  ...p,
-                  class_teacher: classTeacher,
-                  teachers:
-                    classTeacher && !p.teachers.includes(classTeacher)
-                      ? [...p.teachers, classTeacher]
-                      : p.teachers,
-                }));
-              }}
-            >
-              <option value="">No class incharge</option>
-              {(payload.teachers.length
-                ? teachers.filter((teacher) => payload.teachers.includes(teacher.id))
-                : teachers
-              ).map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.full_name || teacher.email || `Teacher ${teacher.id}`}
-                </option>
-              ))}
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex h-10 w-full items-center justify-between rounded-xl border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                <span className={cn(!payload.class_teacher && "text-muted-foreground")}>
+                  {payload.class_teacher
+                    ? teachers.find((teacher) => teacher.id === payload.class_teacher)
+                      ? teacherLabel(teachers.find((teacher) => teacher.id === payload.class_teacher)!)
+                      : `Teacher ${payload.class_teacher}`
+                    : "No class incharge"}
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="max-h-72">
+                <DropdownMenuRadioGroup
+                  value={payload.class_teacher ? String(payload.class_teacher) : "none"}
+                  onValueChange={(value) => {
+                    const classTeacher = value === "none" ? null : Number(value);
+                    setPayload((prev) => ({
+                      ...prev,
+                      class_teacher: classTeacher,
+                      teachers:
+                        classTeacher && !prev.teachers.includes(classTeacher)
+                          ? [...prev.teachers, classTeacher]
+                          : prev.teachers,
+                    }));
+                  }}
+                >
+                  <DropdownMenuLabel>Select class incharge</DropdownMenuLabel>
+                  <DropdownMenuRadioItem value="none">No class incharge</DropdownMenuRadioItem>
+                  <DropdownMenuSeparator />
+                  {(payload.teachers.length
+                    ? teachers.filter((teacher) => payload.teachers.includes(teacher.id))
+                    : teachers
+                  ).map((teacher) => (
+                    <DropdownMenuRadioItem key={teacher.id} value={String(teacher.id)}>
+                      {teacherLabel(teacher)}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </FormField>
         </div>
       </FormModal>

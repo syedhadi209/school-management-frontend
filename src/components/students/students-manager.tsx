@@ -15,8 +15,9 @@ import {
   FAMILY_FIELD_KEYS,
   FamilyDetailsFields,
 } from "@/components/students/family-details-fields";
+import { DatePicker } from "@/components/data/date-picker";
+import { SelectMenu } from "@/components/data/select-menu";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -99,6 +100,23 @@ const CREATE_STEPS = [
   { id: "family", label: "Family details" },
 ];
 
+const genderOptions = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+];
+
+const enrollmentStatusOptions = [
+  { value: "active", label: "Active" },
+  { value: "pending", label: "Pending admission" },
+  { value: "waiting_list", label: "Waiting list" },
+  { value: "withdrawn", label: "Withdrawn" },
+  { value: "archived", label: "Archived" },
+  { value: "repeating", label: "Repeating" },
+];
+
+const UNASSIGNED_SECTION = "unassigned";
+
 const emptyStudent: StudentPayload = {
   first_name: "",
   last_name: "",
@@ -173,6 +191,18 @@ export function StudentsManager({
   const sections = sectionsQuery.data?.results ?? [];
 
   const selectedSection = sections.find((section) => section.id === formState.section);
+  const sectionOptions = useMemo(
+    () => [
+      { value: UNASSIGNED_SECTION, label: "Not assigned yet" },
+      ...sections.map((section) => ({
+        value: String(section.id),
+        label: `${section.class_level_name ? `${section.class_level_name} - ` : ""}${section.name}${
+          section.is_board_class ? " (Board)" : ""
+        }`,
+      })),
+    ],
+    [sections]
+  );
   const showBoardRollField =
     Boolean(editing?.is_board_class) ||
     Boolean(selectedSection?.is_board_class) ||
@@ -328,61 +358,57 @@ export function StudentsManager({
             onChange={(e) => setFormState((prev) => ({ ...prev, last_name: e.target.value }))}
           />
         </FormField>
-        <FormField label="Date of birth">
-          <Input
-            type="date"
+        <FormField label="Date of birth" hint="Optional. Used for age records and reports.">
+          <DatePicker
             value={formState.date_of_birth}
-            onChange={(e) => setFormState((prev) => ({ ...prev, date_of_birth: e.target.value }))}
+            onChange={(value) => setFormState((prev) => ({ ...prev, date_of_birth: value }))}
+            placeholder="Select date of birth"
+            disableFuture
+            fromYear={new Date().getFullYear() - 25}
+            toYear={new Date().getFullYear()}
           />
         </FormField>
         <FormField label="Gender">
-          <Select
+          <SelectMenu
             value={formState.gender}
-            onChange={(e) => setFormState((prev) => ({ ...prev, gender: e.target.value }))}
-          >
-            <option value="">Choose gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </Select>
+            onValueChange={(value) => setFormState((prev) => ({ ...prev, gender: value }))}
+            options={genderOptions}
+            placeholder="Choose gender"
+            menuLabel="Select gender"
+          />
         </FormField>
         <FormField label="Enrollment status" hint="Use Active for students currently attending." required>
-          <Select
+          <SelectMenu
             value={formState.status}
-            onChange={(e) => setFormState((prev) => ({ ...prev, status: e.target.value }))}
-          >
-            <option value="active">Active</option>
-            <option value="pending">Pending admission</option>
-            <option value="waiting_list">Waiting list</option>
-            <option value="withdrawn">Withdrawn</option>
-            <option value="archived">Archived</option>
-            <option value="repeating">Repeating</option>
-          </Select>
+            onValueChange={(value) => setFormState((prev) => ({ ...prev, status: value }))}
+            options={enrollmentStatusOptions}
+            placeholder="Choose status"
+            menuLabel="Select status"
+          />
         </FormField>
-        <FormField label="Class & section" hint="Choose Class 1 - A, Class 2 - B, and so on.">
-          <Select
-            value={formState.section ?? ""}
-            onChange={(e) =>
+        <FormField
+          label="Class & section"
+          hint={
+            sections.length === 0 && !sectionsQuery.isLoading
+              ? "No sections exist yet — create a class first and a section A is added for it automatically."
+              : "Choose Class 1 - A, Class 2 - B, and so on."
+          }
+        >
+          <SelectMenu
+            value={formState.section ? String(formState.section) : UNASSIGNED_SECTION}
+            onValueChange={(value) => {
+              const sectionId = value === UNASSIGNED_SECTION ? null : Number(value);
+              const isBoardSection = sections.find((section) => section.id === sectionId)?.is_board_class;
               setFormState((prev) => ({
                 ...prev,
-                section: e.target.value ? Number(e.target.value) : null,
-                board_roll_number: e.target.value
-                  ? sections.find((section) => section.id === Number(e.target.value))?.is_board_class
-                    ? prev.board_roll_number
-                    : ""
-                  : "",
-              }))
-            }
-          >
-            <option value="">Not assigned yet</option>
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.class_level_name ? `${section.class_level_name} - ` : ""}
-                {section.name}
-                {section.is_board_class ? " (Board)" : ""}
-              </option>
-            ))}
-          </Select>
+                section: sectionId,
+                board_roll_number: isBoardSection ? prev.board_roll_number : "",
+              }));
+            }}
+            options={sectionOptions}
+            placeholder="Not assigned yet"
+            menuLabel="Select class & section"
+          />
         </FormField>
       </div>
     );
