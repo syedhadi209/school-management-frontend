@@ -16,6 +16,7 @@ import {
   School,
   Search,
   TrendingUp,
+  UserCog,
   Users,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ const iconRegistry: Record<string, typeof LayoutDashboard> = {
   sections: Layers,
   subjects: FileText,
   teachers: Users,
+  managers: UserCog,
   admissions: TrendingUp,
 };
 

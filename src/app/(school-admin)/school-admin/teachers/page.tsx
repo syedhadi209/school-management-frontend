@@ -7,6 +7,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { createCrudHooks, extractApiErrorMessage } from "@/lib/crud";
 import { ConfirmDialog } from "@/components/data/confirm-dialog";
 import { DataTableShell } from "@/components/data/data-table";
+import { ProfileAvatar, ProfileImagePicker } from "@/components/data/profile-image-picker";
 import { FormField } from "@/components/data/form-field";
 import { FormModal } from "@/components/data/form-modal";
 import { TablePagination } from "@/components/data/table-pagination";
@@ -41,6 +42,7 @@ type TeacherProfile = {
   address?: string;
   cnic?: string;
   phone_number?: string;
+  profile_image?: string | null;
   subjects_taught?: number[];
   subject_names?: string[];
 };
@@ -59,6 +61,9 @@ type TeacherPayload = {
   address: string;
   cnic: string;
   phone_number: string;
+  profile_image: string | null;
+  profile_image_file: File | null;
+  profile_image_clear: boolean;
   subjects_taught: number[];
 };
 
@@ -79,6 +84,9 @@ const emptyPayload: TeacherPayload = {
   address: "",
   cnic: "",
   phone_number: "",
+  profile_image: null,
+  profile_image_file: null,
+  profile_image_clear: false,
   subjects_taught: [],
 };
 
@@ -146,6 +154,9 @@ export default function SchoolAdminTeachersPage() {
       address: teacher.address ?? "",
       cnic: teacher.cnic ?? "",
       phone_number: teacher.phone_number ?? "",
+      profile_image: teacher.profile_image ?? null,
+      profile_image_file: null,
+      profile_image_clear: false,
       subjects_taught: teacher.subjects_taught ?? [],
     });
     setIsModalOpen(true);
@@ -179,7 +190,7 @@ export default function SchoolAdminTeachersPage() {
 
     setFormError(null);
     try {
-      const shared = {
+      const shared: Record<string, unknown> = {
         first_name: payload.first_name,
         last_name: payload.last_name,
         qualification: payload.qualification,
@@ -191,8 +202,14 @@ export default function SchoolAdminTeachersPage() {
         address: payload.address,
         cnic: payload.cnic,
         phone_number: payload.phone_number,
+        profile_image_clear: payload.profile_image_clear,
         subjects_taught: payload.subjects_taught,
       };
+      if (payload.profile_image_file) {
+        shared.profile_image = payload.profile_image_file;
+      } else if (payload.profile_image_clear) {
+        shared.profile_image = "";
+      }
 
       if (editing) {
         await updateMutation.mutateAsync({
@@ -234,6 +251,7 @@ export default function SchoolAdminTeachersPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Photo</TableHead>
               <TableHead>Employee ID</TableHead>
               <TableHead>Teacher</TableHead>
               <TableHead>Designation</TableHead>
@@ -247,6 +265,13 @@ export default function SchoolAdminTeachersPage() {
           <TableBody>
             {teachers.map((teacher) => (
               <TableRow key={teacher.id}>
+                <TableCell>
+                  <ProfileAvatar
+                    size="sm"
+                    name={teacher.full_name || `User #${teacher.user}`}
+                    imageUrl={teacher.profile_image}
+                  />
+                </TableCell>
                 <TableCell className="font-mono text-xs font-semibold">{teacher.employee_id || "-"}</TableCell>
                 <TableCell>
                   <div className="font-medium">{teacher.full_name || `User #${teacher.user}`}</div>
@@ -294,7 +319,7 @@ export default function SchoolAdminTeachersPage() {
             ))}
             {teachers.length === 0 && !listQuery.isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                   No teachers yet. Add a teacher with their account, contact, and employment details.
                 </TableCell>
               </TableRow>
@@ -376,6 +401,32 @@ export default function SchoolAdminTeachersPage() {
                   </FormField>
                 </>
               )}
+              <FormField
+                label="Profile image"
+                hint="Optional photo shown in teacher lists."
+                className="sm:col-span-2"
+              >
+                <ProfileImagePicker
+                  name={`${payload.first_name} ${payload.last_name}`.trim() || "Teacher"}
+                  imageUrl={payload.profile_image}
+                  imageFile={payload.profile_image_file}
+                  clearRequested={payload.profile_image_clear}
+                  onFileChange={(file) =>
+                    setPayload((prev) => ({
+                      ...prev,
+                      profile_image_file: file,
+                    }))
+                  }
+                  onClearChange={(value) =>
+                    setPayload((prev) => ({
+                      ...prev,
+                      profile_image_clear: value,
+                      profile_image_file: value ? null : prev.profile_image_file,
+                    }))
+                  }
+                  onError={(message) => setFormError(message)}
+                />
+              </FormField>
             </div>
           </section>
 

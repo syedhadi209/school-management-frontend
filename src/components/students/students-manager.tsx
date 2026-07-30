@@ -16,6 +16,7 @@ import {
   FamilyDetailsFields,
 } from "@/components/students/family-details-fields";
 import { DatePicker } from "@/components/data/date-picker";
+import { ProfileAvatar, ProfileImagePicker } from "@/components/data/profile-image-picker";
 import { SelectMenu } from "@/components/data/select-menu";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button";
@@ -54,6 +55,7 @@ type Student = {
   gender: string;
   date_of_birth?: string | null;
   parent_invite_pending?: boolean;
+  profile_image?: string | null;
 };
 
 type StudentPayload = {
@@ -74,6 +76,9 @@ type StudentPayload = {
   gender: string;
   date_of_birth: string;
   board_roll_number: string;
+  profile_image: string | null;
+  profile_image_clear: boolean;
+  profile_image_file: File | null;
 };
 
 type Section = {
@@ -135,6 +140,9 @@ const emptyStudent: StudentPayload = {
   gender: "",
   date_of_birth: "",
   board_roll_number: "",
+  profile_image: null,
+  profile_image_clear: false,
+  profile_image_file: null,
 };
 
 function studentToPayload(student: Student): StudentPayload {
@@ -156,6 +164,9 @@ function studentToPayload(student: Student): StudentPayload {
     gender: student.gender ?? "",
     date_of_birth: student.date_of_birth ?? "",
     board_roll_number: student.board_roll_number ?? "",
+    profile_image: student.profile_image ?? null,
+    profile_image_clear: false,
+    profile_image_file: null,
   };
 }
 
@@ -207,6 +218,7 @@ export function StudentsManager({
     Boolean(editing?.is_board_class) ||
     Boolean(selectedSection?.is_board_class) ||
     (isTeacherMode && Boolean(editing?.is_board_class));
+  const tableColSpan = isTeacherMode ? 8 : 9;
 
   const isCreating = !editing && !isTeacherMode;
   const showStepper = isCreating;
@@ -255,15 +267,22 @@ export function StudentsManager({
   async function saveStudent() {
     setFormError(null);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...formState,
         date_of_birth: formState.date_of_birth || null,
         board_roll_number: showBoardRollField ? formState.board_roll_number.trim() : "",
-      } as unknown as StudentPayload;
+        profile_image_clear: formState.profile_image_clear,
+      };
+      delete payload["profile_image_file"];
+      if (formState.profile_image_file) {
+        payload.profile_image = formState.profile_image_file;
+      } else if (formState.profile_image_clear) {
+        payload.profile_image = "";
+      }
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload });
+        await updateMutation.mutateAsync({ id: editing.id, payload: payload as Partial<StudentPayload> });
       } else {
-        await createMutation.mutateAsync(payload);
+        await createMutation.mutateAsync(payload as StudentPayload);
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -344,6 +363,33 @@ export function StudentsManager({
             />
           </FormField>
         ) : null}
+        <FormField
+          label="Profile image"
+          hint="Optional student photo shown in student lists and profiles."
+          className="sm:col-span-2"
+        >
+          <ProfileImagePicker
+            name={`${formState.first_name} ${formState.last_name}`.trim() || "Student"}
+            imageUrl={formState.profile_image}
+            imageFile={formState.profile_image_file}
+            clearRequested={formState.profile_image_clear}
+            onFileChange={(file) =>
+              setFormState((prev) => ({
+                ...prev,
+                profile_image_file: file,
+                profile_image: file ? prev.profile_image : prev.profile_image,
+              }))
+            }
+            onClearChange={(value) =>
+              setFormState((prev) => ({
+                ...prev,
+                profile_image_clear: value,
+                profile_image_file: value ? null : prev.profile_image_file,
+              }))
+            }
+            onError={(message) => setFormError(message)}
+          />
+        </FormField>
         <FormField label="First name" required>
           <Input
             placeholder="e.g. Ahmed"
@@ -474,6 +520,7 @@ export function StudentsManager({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Photo</TableHead>
               <TableHead>Roll No.</TableHead>
               <TableHead>Board Roll No.</TableHead>
               <TableHead>Full Name</TableHead>
@@ -487,6 +534,13 @@ export function StudentsManager({
           <TableBody>
             {students.map((student) => (
               <TableRow key={student.id}>
+                <TableCell>
+                  <ProfileAvatar
+                    size="sm"
+                    name={student.full_name || `${student.first_name} ${student.last_name}`}
+                    imageUrl={student.profile_image}
+                  />
+                </TableCell>
                 <TableCell className="font-mono text-xs font-semibold">{student.roll_number || "-"}</TableCell>
                 <TableCell className="font-mono text-xs font-semibold">
                   {student.is_board_class ? student.board_roll_number || "—" : "N/A"}
@@ -540,7 +594,7 @@ export function StudentsManager({
             ))}
             {students.length === 0 && !listQuery.isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={tableColSpan} className="py-10 text-center text-muted-foreground">
                   {isTeacherMode
                     ? "No students in your assigned sections yet."
                     : "No students found."}
@@ -549,7 +603,7 @@ export function StudentsManager({
             ) : null}
             {listQuery.isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={tableColSpan} className="py-10 text-center text-muted-foreground">
                   Loading students...
                 </TableCell>
               </TableRow>

@@ -29,6 +29,50 @@ function buildQueryParams(params: ListParams = {}) {
   return query.toString();
 }
 
+function isBinaryValue(value: unknown): value is Blob {
+  if (typeof Blob === "undefined") return false;
+  return value instanceof Blob;
+}
+
+function payloadHasFile(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  if (isBinaryValue(payload)) return true;
+  if (Array.isArray(payload)) return payload.some((item) => payloadHasFile(item));
+  return Object.values(payload).some((value) => payloadHasFile(value));
+}
+
+function appendToFormData(formData: FormData, key: string, value: unknown) {
+  if (value === undefined) return;
+  if (value === null) {
+    formData.append(key, "");
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => appendToFormData(formData, key, item));
+    return;
+  }
+  if (isBinaryValue(value)) {
+    formData.append(key, value);
+    return;
+  }
+  if (typeof value === "boolean") {
+    formData.append(key, value ? "true" : "false");
+    return;
+  }
+  formData.append(key, String(value));
+}
+
+function toRequestBody(payload: unknown): unknown {
+  if (!payloadHasFile(payload) || !payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+  const formData = new FormData();
+  Object.entries(payload as Record<string, unknown>).forEach(([key, value]) =>
+    appendToFormData(formData, key, value)
+  );
+  return formData;
+}
+
 const FIELD_LABELS: Record<string, string> = {
   non_field_errors: "",
   class_level: "Class",
@@ -57,6 +101,7 @@ const FIELD_LABELS: Record<string, string> = {
   designation: "Designation",
   shift_start_time: "Shift start time",
   shift_end_time: "Shift end time",
+  profile_image: "Profile image",
 };
 
 function humanizeField(field: string) {
@@ -132,7 +177,7 @@ export function createCrudHooks<TItem, TInput extends Record<string, unknown>>(r
     const queryClient = useQueryClient();
     return useMutation({
       mutationFn: async (payload: TInput) => {
-        const { data } = await api.post<TItem>(normalizedPath, payload);
+        const { data } = await api.post<TItem>(normalizedPath, toRequestBody(payload));
         return data;
       },
       onSuccess: () => {
@@ -149,7 +194,7 @@ export function createCrudHooks<TItem, TInput extends Record<string, unknown>>(r
     const queryClient = useQueryClient();
     return useMutation({
       mutationFn: async ({ id, payload }: { id: number | string; payload: Partial<TInput> }) => {
-        const { data } = await api.patch<TItem>(`${normalizedPath}${id}/`, payload);
+        const { data } = await api.patch<TItem>(`${normalizedPath}${id}/`, toRequestBody(payload));
         return data;
       },
       onSuccess: () => {
