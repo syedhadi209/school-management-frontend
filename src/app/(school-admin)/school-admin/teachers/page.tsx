@@ -218,8 +218,7 @@ export default function SchoolAdminTeachersPage() {
         });
       } else {
         await createMutation.mutateAsync({
-          email: payload.email,
-          password: payload.password,
+          ...payload,
           ...shared,
         });
       }
