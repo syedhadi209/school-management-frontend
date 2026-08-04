@@ -52,6 +52,12 @@ export function middleware(request: NextRequest) {
   if (pathname === "/auth/login" || pathname === "/auth/register") {
     return NextResponse.redirect(new URL(allowedPrefix, request.url));
   }
+
+  // Logged-in users hitting the public landing page go to their portal dashboard.
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(allowedPrefix, request.url));
+  }
+
   return NextResponse.next();
 }
 
