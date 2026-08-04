@@ -451,6 +451,10 @@ export function TimetableManager() {
                   placeholder={rosterTeachers.length ? "Select teacher" : "Assign teachers on Sections first"}
                   menuLabel="Section teachers"
                 />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  A teacher can only teach one class at a time. If they already have a slot in this window,
+                  edit or clear that assignment first.
+                </p>
               </FormField>
             </>
           )}

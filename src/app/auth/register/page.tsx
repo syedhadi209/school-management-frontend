@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 
 import { registerSchoolOwner } from "@/lib/auth";
+import { extractApiErrorMessage } from "@/lib/crud";
 import { AuthSplitShell } from "@/components/auth/auth-split-shell";
 import { AuthField, PasswordField } from "@/components/auth/auth-field";
 import { cn } from "@/lib/utils";
@@ -34,8 +35,13 @@ export default function RegisterPage() {
       });
       setSuccess(true);
       setTimeout(() => router.push("/auth/login"), 2000);
-    } catch {
-      setError("Registration failed. The email may already be in use.");
+    } catch (err) {
+      setError(
+        extractApiErrorMessage(
+          err,
+          "Registration failed. Check your details and try again."
+        )
+      );
       setIsSubmitting(false);
     }
   }

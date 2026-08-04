@@ -37,7 +37,7 @@ export const schoolAdminDashboard: DashboardData = {
   quickActions: [
     { icon: Users, tint: "bg-blue-100 text-blue-600", title: "Register Student", subtitle: "Add new student", href: "/school-admin/students" },
     { icon: GraduationCap, tint: "bg-emerald-100 text-emerald-600", title: "Create Class", subtitle: "Set up Class 1, Class 2…", href: "/school-admin/classes" },
-    { icon: UserCheck, tint: "bg-orange-100 text-orange-600", title: "Add Attendance", subtitle: "Record class attendance", href: "/school-admin/students" },
+    { icon: UserCheck, tint: "bg-orange-100 text-orange-600", title: "Add Attendance", subtitle: "Record class attendance", href: "/school-admin/attendance" },
     { icon: CreditCard, tint: "bg-purple-100 text-purple-600", title: "Generate Invoice", subtitle: "Create fee invoice", href: "/school-admin/fees" },
   ],
 };
@@ -74,7 +74,7 @@ export const teacherDashboard: DashboardData = {
   ],
   quickActions: [
     { icon: FileText, tint: "bg-blue-100 text-blue-600", title: "Enter Marks", subtitle: "Submit exam scores", href: "/teacher/marks" },
-    { icon: UserCheck, tint: "bg-emerald-100 text-emerald-600", title: "Mark Attendance", subtitle: "Record today's attendance", href: "/teacher/marks" },
+    { icon: UserCheck, tint: "bg-emerald-100 text-emerald-600", title: "Mark Attendance", subtitle: "Record today's attendance", href: "/teacher/attendance" },
   ],
 };
 

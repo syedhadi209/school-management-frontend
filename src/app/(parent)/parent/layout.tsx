@@ -9,6 +9,7 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
       links={[
         { href: "/parent", label: "Dashboard", icon: "dashboard" },
         { href: "/parent/timetable", label: "Timetable", icon: "timetable" },
+        { href: "/parent/attendance", label: "Attendance", icon: "attendance" },
         { href: "/parent/invoices", label: "Invoices", icon: "invoices" },
       ]}
     >

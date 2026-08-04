@@ -16,6 +16,7 @@ import {
   School,
   Search,
   TrendingUp,
+  UserCheck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -45,6 +46,7 @@ const iconRegistry: Record<string, typeof LayoutDashboard> = {
   teachers: Users,
   managers: UserCog,
   admissions: TrendingUp,
+  attendance: UserCheck,
 };
 
 export interface NavLink {

@@ -50,12 +50,26 @@ export function TimetableWeekGrid({
   onDelete?: (entry: TimetableEntry) => void;
   emptyMessage?: string;
 }) {
-  const byDay = DAY_OPTIONS.map((day) => ({
-    ...day,
-    slots: entries
+  const byDay = DAY_OPTIONS.map((day) => {
+    const raw = entries
       .filter((entry) => entry.day_of_week === day.value && entry.is_active !== false)
-      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
-  }));
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    // Collapse identical school-wide breaks (same time/label) so teachers don't see
+    // Recess/Lunch repeated once per section they teach.
+    const slots: TimetableEntry[] = [];
+    const seenBreakKeys = new Set<string>();
+    for (const entry of raw) {
+      if (entry.slot_type === "break") {
+        const key = `${entry.start_time}|${entry.end_time}|${entry.label || "Break"}`;
+        if (seenBreakKeys.has(key)) continue;
+        seenBreakKeys.add(key);
+      }
+      slots.push(entry);
+    }
+
+    return { ...day, slots };
+  });
 
   const hasAny = byDay.some((day) => day.slots.length > 0);
   if (!hasAny) {

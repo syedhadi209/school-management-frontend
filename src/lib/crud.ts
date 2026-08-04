@@ -75,6 +75,8 @@ function toRequestBody(payload: unknown): unknown {
 
 const FIELD_LABELS: Record<string, string> = {
   non_field_errors: "",
+  school_name: "School name",
+  full_name: "Full name",
   class_level: "Class",
   class_teacher: "Class incharge",
   teachers: "Assigned teachers",
