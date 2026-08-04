@@ -220,7 +220,6 @@ export default function SchoolAdminTeachersPage() {
         await createMutation.mutateAsync({
           email: payload.email,
           password: payload.password,
-          is_active: payload.is_active,
           ...shared,
         });
       }
