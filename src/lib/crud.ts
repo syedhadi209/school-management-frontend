@@ -102,6 +102,12 @@ const FIELD_LABELS: Record<string, string> = {
   shift_start_time: "Shift start time",
   shift_end_time: "Shift end time",
   profile_image: "Profile image",
+  day_of_week: "Day",
+  start_time: "Start time",
+  end_time: "End time",
+  slot_type: "Slot type",
+  section_ids: "Sections",
+  class_level_ids: "Classes",
 };
 
 function humanizeField(field: string) {

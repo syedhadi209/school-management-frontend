@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "School OS — School Management Platform",
+  title: "Edunity — School Management Platform",
   description:
     "Admissions, academics, fees, and parent communication unified for modern schools. Register your school today.",
 };

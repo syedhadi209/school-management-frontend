@@ -9,6 +9,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       links={[
         { href: "/teacher", label: "Dashboard", icon: "dashboard" },
         { href: "/teacher/students", label: "My Students", icon: "students" },
+        { href: "/teacher/timetable", label: "Timetable", icon: "timetable" },
         { href: "/teacher/marks", label: "Mark Entry", icon: "marks" },
       ]}
     >

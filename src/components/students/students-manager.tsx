@@ -679,7 +679,7 @@ export function StudentsManager({
                 disabled
               />
             </FormField>
-            <FormField label="School roll number" hint="Internal School OS roll number.">
+            <FormField label="School roll number" hint="Internal Edunity roll number.">
               <Input value={editing?.roll_number || ""} disabled />
             </FormField>
             <FormField

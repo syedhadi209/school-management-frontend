@@ -37,7 +37,7 @@ export function AuthSplitShell({
             <div className="flex size-10 items-center justify-center rounded-2xl bg-white/15">
               <Building2 className="size-5 text-white" />
             </div>
-            <span className="text-lg font-extrabold text-white">School OS</span>
+            <span className="text-lg font-extrabold text-white">Edunity</span>
           </Link>
 
           <h2 className="mt-14 max-w-sm text-3xl font-extrabold leading-tight text-white xl:text-4xl">
@@ -73,7 +73,7 @@ export function AuthSplitShell({
             className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground lg:hidden"
           >
             <Building2 className="size-4" />
-            Back to School OS
+            Back to Edunity
           </Link>
 
           <div className="w-full max-w-md">

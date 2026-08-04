@@ -36,7 +36,7 @@ export default function LoginPage() {
 
   return (
     <AuthSplitShell
-      eyebrow="School OS"
+      eyebrow="Edunity"
       title="Welcome back"
       subtitle="Sign in to access your school admin, teacher, or parent portal."
       panelTitle="Run your entire school from one platform"
@@ -49,7 +49,7 @@ export default function LoginPage() {
       ]}
       testimonial={{
         quote:
-          "School OS helped us reduce admin workload dramatically. Our office team now finishes tasks in hours instead of days.",
+          "Edunity helped us reduce admin workload dramatically. Our office team now finishes tasks in hours instead of days.",
         name: "Ayesha Farooq",
         role: "Principal, Bright Future School",
       }}

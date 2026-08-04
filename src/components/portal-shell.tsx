@@ -80,7 +80,7 @@ function SidebarNav({
             <Building2 className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-extrabold leading-none">School OS</p>
+            <p className="text-sm font-extrabold leading-none">Edunity</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{title}</p>
           </div>
         </Link>

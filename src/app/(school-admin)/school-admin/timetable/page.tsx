@@ -2,13 +2,13 @@
 
 import { TimetableManager } from "@/components/timetable/timetable-manager";
 
-export default function ManagerTimetablePage() {
+export default function SchoolAdminTimetablePage() {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Timetable</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Build weekly schedules per section. Teacher and section time conflicts are blocked automatically.
+          Manage weekly lecture and break schedules for every section.
         </p>
       </div>
       <TimetableManager />

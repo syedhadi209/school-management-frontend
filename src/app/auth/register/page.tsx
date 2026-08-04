@@ -45,7 +45,7 @@ export default function RegisterPage() {
       eyebrow="Get started"
       title="Register your school"
       subtitle="Create your school account and start managing operations in minutes."
-      panelTitle="Join 320+ schools already on School OS"
+      panelTitle="Join 320+ schools already on Edunity"
       panelSubtitle="Set up your school, invite your team, and go live in under two weeks."
       highlights={[
         "Guided onboarding in under two weeks",

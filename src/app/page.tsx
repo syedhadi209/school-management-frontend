@@ -82,7 +82,7 @@ const capabilities = [
 const testimonials = [
   {
     quote:
-      "School OS cut our admin workload in half. Admissions and fee follow-ups that used to take days now happen in hours.",
+      "Edunity cut our admin workload in half. Admissions and fee follow-ups that used to take days now happen in hours.",
     name: "Ayesha Farooq",
     role: "Principal, Bright Future School",
   },
@@ -155,7 +155,7 @@ export default function Home() {
             <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Building2 className="size-5" />
             </div>
-            <span className="text-lg font-extrabold tracking-tight">School OS</span>
+            <span className="text-lg font-extrabold tracking-tight">Edunity</span>
           </Link>
 
           <nav className="hidden items-center gap-8 lg:flex">
@@ -317,7 +317,7 @@ export default function Home() {
         {/* Split story section */}
         <section id="workflow" className="section-shell grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <div>
-            <p className="text-sm font-semibold text-primary">Why School OS</p>
+            <p className="text-sm font-semibold text-primary">Why Edunity</p>
             <h2 className="section-heading mt-2 text-left">Built for how schools actually work</h2>
             <p className="mt-4 text-base leading-7 text-muted-foreground">
               Stop juggling spreadsheets, WhatsApp groups, and legacy software. Give every role the tools they need
@@ -493,7 +493,7 @@ export default function Home() {
                 <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Building2 className="size-4" />
                 </div>
-                <span className="font-extrabold">School OS</span>
+                <span className="font-extrabold">Edunity</span>
               </Link>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 Modern school management for admissions, academics, fees, and parent engagement.
@@ -513,7 +513,7 @@ export default function Home() {
             ))}
           </div>
           <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row">
-            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} School OS. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Edunity. All rights reserved.</p>
             <div className="flex gap-6">
               <Link href="/auth/login" className="text-sm text-muted-foreground hover:text-foreground">
                 Login

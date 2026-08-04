@@ -15,6 +15,7 @@ export default function SchoolAdminLayout({ children }: { children: React.ReactN
         { href: "/school-admin/teachers", label: "Teachers", icon: "teachers" },
         { href: "/school-admin/managers", label: "Managers", icon: "managers" },
         { href: "/school-admin/admissions", label: "Admissions", icon: "admissions" },
+        { href: "/school-admin/timetable", label: "Timetable", icon: "timetable" },
         { href: "/school-admin/fees", label: "Fees", icon: "fees" },
       ]}
     >
