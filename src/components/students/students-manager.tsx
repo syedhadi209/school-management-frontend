@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
 
+import { api } from "@/lib/api";
 import { createCrudHooks, extractApiErrorFields, extractApiErrorMessage } from "@/lib/crud";
 import { DataTableShell } from "@/components/data/data-table";
 import { FormField } from "@/components/data/form-field";
@@ -56,6 +58,10 @@ type Student = {
   date_of_birth?: string | null;
   parent_invite_pending?: boolean;
   profile_image?: string | null;
+  monthly_fee_base?: string | number | null;
+  monthly_fee_discount?: string | number | null;
+  monthly_fee_effective?: string | number | null;
+  fee_notes_display?: string;
 };
 
 type StudentPayload = {
@@ -79,15 +85,33 @@ type StudentPayload = {
   profile_image: string | null;
   profile_image_clear: boolean;
   profile_image_file: File | null;
+  discount_amount: string;
+  fee_notes: string;
 };
 
 type Section = {
   id: number;
   name: string;
+  class_level: number;
   class_level_name?: string;
   is_board_class?: boolean;
   shift?: string;
 };
+
+type ClassFee = {
+  id: number;
+  amount: string;
+  name: string;
+  class_level: number;
+  class_level_name?: string;
+};
+
+function formatMoney(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `₨ ${n.toLocaleString()}`;
+}
 
 const studentHooks = createCrudHooks<Student, StudentPayload>("/students/");
 const sectionHooks = createCrudHooks<Section, Record<string, unknown>>("/sections/");
@@ -143,6 +167,8 @@ const emptyStudent: StudentPayload = {
   profile_image: null,
   profile_image_clear: false,
   profile_image_file: null,
+  discount_amount: "0",
+  fee_notes: "",
 };
 
 function studentToPayload(student: Student): StudentPayload {
@@ -167,6 +193,11 @@ function studentToPayload(student: Student): StudentPayload {
     profile_image: student.profile_image ?? null,
     profile_image_clear: false,
     profile_image_file: null,
+    discount_amount:
+      student.monthly_fee_discount === null || student.monthly_fee_discount === undefined
+        ? "0"
+        : String(student.monthly_fee_discount),
+    fee_notes: student.fee_notes_display ?? "",
   };
 }
 
@@ -202,6 +233,28 @@ export function StudentsManager({
   const sections = sectionsQuery.data?.results ?? [];
 
   const selectedSection = sections.find((section) => section.id === formState.section);
+  const selectedClassLevelId = selectedSection?.class_level ?? null;
+
+  const classFeeQuery = useQuery({
+    queryKey: ["/fee-structures/for-class/", selectedClassLevelId],
+    queryFn: async () => {
+      const { data } = await api.get<ClassFee>(
+        `/fee-structures/for-class/?class_level=${selectedClassLevelId}`
+      );
+      return data;
+    },
+    enabled: !isTeacherMode && Boolean(selectedClassLevelId) && isModalOpen,
+    retry: false,
+  });
+
+  const classFee = classFeeQuery.data;
+  const classFeeAmount = classFee ? Number(classFee.amount) : null;
+  const discountNumber = Number(formState.discount_amount);
+  const netMonthlyFee =
+    classFeeAmount !== null && Number.isFinite(discountNumber)
+      ? Math.max(classFeeAmount - discountNumber, 0)
+      : null;
+
   const sectionOptions = useMemo(
     () => [
       { value: UNASSIGNED_SECTION, label: "Not assigned yet" },
@@ -218,7 +271,7 @@ export function StudentsManager({
     Boolean(editing?.is_board_class) ||
     Boolean(selectedSection?.is_board_class) ||
     (isTeacherMode && Boolean(editing?.is_board_class));
-  const tableColSpan = isTeacherMode ? 8 : 9;
+  const tableColSpan = isTeacherMode ? 8 : 10;
 
   const isCreating = !editing && !isTeacherMode;
   const showStepper = isCreating;
@@ -252,6 +305,15 @@ export function StudentsManager({
     if (formState.board_roll_number.trim() && !showBoardRollField) {
       return "Board roll numbers can only be set for students in a board examination class.";
     }
+    if (formState.section && classFeeAmount !== null) {
+      const discount = Number(formState.discount_amount);
+      if (!Number.isFinite(discount) || discount < 0) {
+        return "Enter a valid discount amount (0 or more).";
+      }
+      if (discount > classFeeAmount) {
+        return "Discount cannot exceed the class monthly fee.";
+      }
+    }
     return null;
   }
 
@@ -272,6 +334,8 @@ export function StudentsManager({
         date_of_birth: formState.date_of_birth || null,
         board_roll_number: showBoardRollField ? formState.board_roll_number.trim() : "",
         profile_image_clear: formState.profile_image_clear,
+        discount_amount: formState.section ? Number(formState.discount_amount) || 0 : 0,
+        fee_notes: formState.fee_notes.trim(),
       };
       delete payload["profile_image_file"];
       if (formState.profile_image_file) {
@@ -449,6 +513,8 @@ export function StudentsManager({
                 ...prev,
                 section: sectionId,
                 board_roll_number: isBoardSection ? prev.board_roll_number : "",
+                discount_amount: sectionId === prev.section ? prev.discount_amount : "0",
+                fee_notes: sectionId === prev.section ? prev.fee_notes : "",
               }));
             }}
             options={sectionOptions}
@@ -456,6 +522,51 @@ export function StudentsManager({
             menuLabel="Select class & section"
           />
         </FormField>
+        {formState.section ? (
+          <div className="sm:col-span-2 rounded-xl border border-border bg-muted/30 p-4 space-y-4">
+            <div>
+              <p className="text-sm font-medium">Monthly tuition</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Based on the class fee. Discount is saved for this student only.
+              </p>
+            </div>
+            {classFeeQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading class fee…</p>
+            ) : classFeeAmount === null ? (
+              <p className="text-sm text-muted-foreground">
+                No monthly tuition is set for this class yet. Add it under Fees, then come back.
+              </p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <FormField label="Class monthly fee">
+                  <Input value={formatMoney(classFeeAmount)} disabled />
+                </FormField>
+                <FormField label="Discount" hint="Optional reduction for this student.">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={classFeeAmount}
+                    value={formState.discount_amount}
+                    onChange={(e) =>
+                      setFormState((prev) => ({ ...prev, discount_amount: e.target.value }))
+                    }
+                    placeholder="0"
+                  />
+                </FormField>
+                <FormField label="Net monthly fee">
+                  <Input value={formatMoney(netMonthlyFee)} disabled />
+                </FormField>
+                <FormField label="Discount note" className="sm:col-span-3" hint="Optional reason saved with the discount.">
+                  <Input
+                    value={formState.fee_notes}
+                    onChange={(e) => setFormState((prev) => ({ ...prev, fee_notes: e.target.value }))}
+                    placeholder="e.g. Sibling discount"
+                  />
+                </FormField>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -526,6 +637,7 @@ export function StudentsManager({
               <TableHead>Full Name</TableHead>
               <TableHead>Section</TableHead>
               <TableHead>Class</TableHead>
+              {!isTeacherMode ? <TableHead>Monthly fee</TableHead> : null}
               {!isTeacherMode ? <TableHead>Region</TableHead> : null}
               {!isTeacherMode ? <TableHead>Status</TableHead> : <TableHead>Board</TableHead>}
               <TableHead className="text-right">Actions</TableHead>
@@ -550,6 +662,16 @@ export function StudentsManager({
                 </TableCell>
                 <TableCell>{student.section_name || "-"}</TableCell>
                 <TableCell>{student.class_level_name || "-"}</TableCell>
+                {!isTeacherMode ? (
+                  <TableCell className="tabular-nums">
+                    {formatMoney(student.monthly_fee_effective)}
+                    {student.monthly_fee_discount && Number(student.monthly_fee_discount) > 0 ? (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        (−{formatMoney(student.monthly_fee_discount).replace("₨ ", "")})
+                      </span>
+                    ) : null}
+                  </TableCell>
+                ) : null}
                 {!isTeacherMode ? <TableCell>{student.region || "-"}</TableCell> : null}
                 {!isTeacherMode ? (
                   <TableCell className="capitalize">{student.status.replace("_", " ")}</TableCell>
