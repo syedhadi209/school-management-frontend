@@ -14,7 +14,7 @@ export default function ParentDashboardPage() {
           <StatCard key={s.label} {...s} />
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <Panel title="Recent Activity">
           <ActivityFeed items={activity} />
         </Panel>

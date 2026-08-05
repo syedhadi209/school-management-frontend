@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { LogoutButton } from "@/components/logout-button";
+import { UserMenu } from "@/components/user-menu";
 import {
   Sheet,
   SheetContent,
@@ -77,20 +77,21 @@ function SidebarNav({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-white">
       <div className="p-5">
         <Link href="/" className="flex items-center gap-2.5" onClick={onNavigate}>
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#0EA5E9] via-[#0284C7] to-[#06B6D4] text-white">
             <Building2 className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-extrabold leading-none">Edunity</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{title}</p>
+            <p className="font-brand text-sm font-bold leading-none text-[#181818]">Edunity</p>
+            <p className="mt-0.5 text-[10px] leading-tight text-[#B7B7B7]">School Operating System</p>
           </div>
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 px-3 pb-4">
+        <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#B7B7B7]">{title}</p>
         {links.map((link) => {
           const Icon = iconRegistry[link.icon] ?? LayoutDashboard;
           const isActive =
@@ -103,10 +104,10 @@ function SidebarNav({
               href={link.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
+                "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-xs transition-colors",
                 isActive
-                  ? "bg-primary/10 font-semibold text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-[#C4EAFB] font-bold text-[#181818]"
+                  : "font-medium text-[#B7B7B7] hover:bg-slate-50 hover:text-slate-900"
               )}
             >
               <Icon className="size-[18px]" />
@@ -115,10 +116,6 @@ function SidebarNav({
           );
         })}
       </nav>
-
-      <div className="border-t p-4">
-        <LogoutButton />
-      </div>
     </div>
   );
 }
@@ -134,9 +131,9 @@ export function PortalShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
+    <div className="flex min-h-screen bg-slate-50">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r bg-card lg:block">
+      <aside className="hidden w-64 shrink-0 border-r bg-white lg:block">
         <SidebarNav title={title} links={links} pathname={pathname} />
       </aside>
 
@@ -150,7 +147,7 @@ export function PortalShell({
             >
               <Menu className="size-4" />
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
+            <SheetContent side="left" className="w-64 bg-white p-0">
               <SidebarNav
                 title={title}
                 links={links}
@@ -183,9 +180,7 @@ export function PortalShell({
             <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary" />
           </button>
 
-          <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-            SO
-          </div>
+          <UserMenu />
         </header>
 
         {/* Main content */}

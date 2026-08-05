@@ -123,7 +123,7 @@ export default function SchoolAdminDashboardPage() {
           Could not load dashboard data for your school. Refresh to try again.
         </p>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <Panel title="Recent Activity">
           {isLoading ? (
             <p className="px-5 py-8 text-center text-sm text-muted-foreground">Loading activity…</p>

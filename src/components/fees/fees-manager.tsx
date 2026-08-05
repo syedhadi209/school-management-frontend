@@ -28,6 +28,8 @@ type Fund = {
   name: string;
   amount: string;
   status: string;
+  class_levels?: number[];
+  due_on?: string | null;
 };
 
 type Invoice = {
@@ -55,7 +57,7 @@ type InvoicePayload = {
   total_amount: number;
   paid_amount: number;
   status: string;
-  due_date: string;
+  due_date: string | null;
 };
 
 type PaymentPayload = { invoice: number | null; amount: number; method: string };
@@ -64,6 +66,11 @@ type Student = {
   full_name?: string;
   first_name: string;
   last_name: string;
+  class_level?: number | null;
+  class_level_name?: string | null;
+  fee_structure?: number | null;
+  monthly_fee_base?: string | number | null;
+  monthly_fee_discount?: string | number | null;
   monthly_fee_effective?: string | number | null;
 };
 
@@ -83,6 +90,21 @@ const emptyInvoice: InvoicePayload = {
   status: "unpaid",
   due_date: "",
 };
+
+function formatMoney(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `₨ ${n.toLocaleString()}`;
+}
+
+function endOfCurrentMonth() {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const month = String(last.getMonth() + 1).padStart(2, "0");
+  const day = String(last.getDate()).padStart(2, "0");
+  return `${last.getFullYear()}-${month}-${day}`;
+}
 
 function typeLabel(invoice: Invoice) {
   if (invoice.invoice_type === "fund") {
@@ -146,17 +168,17 @@ export function FeesManager() {
     { enabled: paymentModalOpen }
   );
 
-  // Students already charged for the selected fund cannot be charged twice.
-  const fundChargesQuery = invoiceHooks.useList(
+  // A student can only hold one invoice per fund, so already-charged funds are hidden.
+  const studentFundChargesQuery = invoiceHooks.useList(
     {
       page: 1,
-      page_size: 500,
+      page_size: 200,
       invoice_type: "fund",
-      fund: invoicePayload.fund ?? undefined,
+      student: invoicePayload.student ?? undefined,
     },
     {
       enabled:
-        invoiceModalOpen && invoicePayload.invoice_type === "fund" && Boolean(invoicePayload.fund),
+        invoiceModalOpen && invoicePayload.invoice_type === "fund" && Boolean(invoicePayload.student),
     }
   );
 
@@ -168,11 +190,33 @@ export function FeesManager() {
   const invoices = invoiceQuery.data?.results ?? [];
   const students = studentQuery.data?.results ?? [];
 
-  const chargedStudentIds = new Set((fundChargesQuery.data?.results ?? []).map((inv) => inv.student));
-  const invoiceStudentOptions =
-    invoicePayload.invoice_type === "fund" && invoicePayload.fund
-      ? students.filter((student) => !chargedStudentIds.has(student.id))
-      : students;
+  const selectedStudent = students.find((student) => student.id === invoicePayload.student);
+
+  function tuitionForStudent(student: Student | undefined) {
+    if (!student) return undefined;
+    return (
+      feeStructures.find((fee) => fee.id === student.fee_structure) ??
+      feeStructures.find((fee) => fee.class_level === student.class_level)
+    );
+  }
+
+  function monthlyChargeFor(student: Student | undefined) {
+    const effective = student?.monthly_fee_effective;
+    if (effective !== null && effective !== undefined && Number(effective) > 0) {
+      return Number(effective);
+    }
+    return Number(tuitionForStudent(student)?.amount ?? 0);
+  }
+
+  const selectedTuition = tuitionForStudent(selectedStudent);
+  const chargedFundIds = new Set(
+    (studentFundChargesQuery.data?.results ?? []).map((invoice) => invoice.fund)
+  );
+  const fundOptions = funds.filter((fund) => {
+    if (chargedFundIds.has(fund.id)) return false;
+    if (!selectedStudent?.class_level || !fund.class_levels?.length) return true;
+    return fund.class_levels.includes(selectedStudent.class_level);
+  });
 
   const payableInvoices = (payableQuery.data?.results ?? []).filter(
     (invoice) => Number(invoice.balance ?? 0) > 0
@@ -197,20 +241,28 @@ export function FeesManager() {
       setInvoiceError("Choose the student this invoice is for.");
       return;
     }
-    if (invoicePayload.invoice_type === "monthly_fee" && !invoicePayload.fee_structure) {
-      setInvoiceError("Choose which class tuition this invoice charges.");
+    if (invoicePayload.invoice_type === "monthly_fee" && !selectedTuition) {
+      setInvoiceError(
+        `No monthly tuition is set for ${selectedStudent?.class_level_name || "this student's class"}. Add it under Classes first.`
+      );
       return;
     }
     if (invoicePayload.invoice_type === "fund" && !invoicePayload.fund) {
       setInvoiceError("Choose which fund this invoice charges.");
       return;
     }
+    if (!invoicePayload.total_amount || invoicePayload.total_amount <= 0) {
+      setInvoiceError("Amount must be greater than zero.");
+      return;
+    }
 
     setInvoiceError(null);
     const body: InvoicePayload = {
       ...invoicePayload,
-      fee_structure: invoicePayload.invoice_type === "monthly_fee" ? invoicePayload.fee_structure : null,
+      fee_structure:
+        invoicePayload.invoice_type === "monthly_fee" ? (selectedTuition?.id ?? null) : null,
       fund: invoicePayload.invoice_type === "fund" ? invoicePayload.fund : null,
+      due_date: invoicePayload.due_date || null,
     };
     try {
       await createInvoice.mutateAsync(body);
@@ -345,7 +397,7 @@ export function FeesManager() {
         open={invoiceModalOpen}
         onOpenChange={setInvoiceModalOpen}
         title="Create Invoice"
-        description="Create a monthly tuition or fund invoice. Prefer auto-generated fund invoices from Funds → Activate."
+        description="Pick the type and the student — the amount fills in automatically from their class tuition or the fund."
         submitLabel="Create"
         loading={createInvoice.isPending}
         error={invoiceError}
@@ -358,9 +410,11 @@ export function FeesManager() {
               setInvoicePayload((p) => ({
                 ...p,
                 invoice_type: e.target.value as "monthly_fee" | "fund",
+                student: null,
                 fee_structure: null,
                 fund: null,
                 total_amount: 0,
+                due_date: "",
               }))
             }
           >
@@ -368,83 +422,95 @@ export function FeesManager() {
             <option value="fund">Fund</option>
           </Select>
         </FormField>
-        <FormField
-          label="Student"
-          required
-          hint={
-            invoicePayload.invoice_type === "fund"
-              ? "Students already charged for this fund are hidden — collect from them with Record Payment."
-              : undefined
-          }
-        >
+        <FormField label="Student" required>
           <Select
             value={invoicePayload.student ?? ""}
             onChange={(e) => {
               const studentId = Number(e.target.value) || null;
               const student = students.find((item) => item.id === studentId);
-              const effective = student?.monthly_fee_effective;
               setInvoicePayload((p) => ({
                 ...p,
                 student: studentId,
-                total_amount:
-                  p.invoice_type === "monthly_fee" && effective !== null && effective !== undefined
-                    ? Number(effective) || p.total_amount
-                    : p.total_amount,
+                ...(p.invoice_type === "monthly_fee"
+                  ? {
+                      fee_structure: tuitionForStudent(student)?.id ?? null,
+                      total_amount: monthlyChargeFor(student),
+                      due_date: p.due_date || endOfCurrentMonth(),
+                    }
+                  : { fund: null, total_amount: 0, due_date: "" }),
               }));
             }}
           >
             <option value="">Choose a student</option>
-            {invoiceStudentOptions.map((student) => (
+            {students.map((student) => (
               <option key={student.id} value={student.id}>
                 {student.full_name || `${student.first_name} ${student.last_name}`}
+                {student.class_level_name ? ` — ${student.class_level_name}` : ""}
               </option>
             ))}
           </Select>
         </FormField>
+
         {invoicePayload.invoice_type === "monthly_fee" ? (
-          <FormField label="Class tuition" hint="Pick the class monthly tuition this invoice is based on." required>
-            <Select
-              value={invoicePayload.fee_structure ?? ""}
-              onChange={(e) => {
-                const feeId = Number(e.target.value) || null;
-                const fee = feeStructures.find((item) => item.id === feeId);
-                setInvoicePayload((p) => ({
-                  ...p,
-                  fee_structure: feeId,
-                  total_amount:
-                    p.total_amount > 0 ? p.total_amount : fee ? Number(fee.amount) || 0 : 0,
-                }));
-              }}
-            >
-              <option value="">Choose class tuition</option>
-              {feeStructures.map((fee) => (
-                <option key={fee.id} value={fee.id}>
-                  {fee.class_level_name || fee.name} — ₨ {fee.amount}
-                </option>
-              ))}
-            </Select>
-          </FormField>
+          selectedStudent ? (
+            <div className="rounded-xl border border-border/80 bg-muted/30 p-3 text-sm">
+              {selectedTuition ? (
+                <dl className="space-y-1">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">
+                      {selectedStudent.class_level_name || "Class"} monthly tuition
+                    </dt>
+                    <dd className="font-medium">
+                      {formatMoney(selectedStudent.monthly_fee_base ?? selectedTuition.amount)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">Discount</dt>
+                    <dd className="font-medium">{formatMoney(selectedStudent.monthly_fee_discount ?? 0)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-border/60 pt-1">
+                    <dt className="text-muted-foreground">Charged this invoice</dt>
+                    <dd className="font-semibold">{formatMoney(monthlyChargeFor(selectedStudent))}</dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-destructive">
+                  No monthly tuition is set for {selectedStudent.class_level_name || "this student's class"}.
+                  Add it under Classes, then create this invoice.
+                </p>
+              )}
+            </div>
+          ) : null
         ) : (
           <FormField
             label="Fund"
             required
-            hint="Activating a fund already charges every active student in its classes."
+            hint={
+              selectedStudent
+                ? "Only active funds for this student's class that they aren't charged for yet."
+                : "Choose a student first."
+            }
           >
             <Select
               value={invoicePayload.fund ?? ""}
+              disabled={!selectedStudent}
               onChange={(e) => {
                 const fundId = Number(e.target.value) || null;
                 const fund = funds.find((item) => item.id === fundId);
                 setInvoicePayload((p) => ({
                   ...p,
                   fund: fundId,
-                  student: null,
-                  total_amount: fund ? Number(fund.amount) || 0 : p.total_amount,
+                  total_amount: fund ? Number(fund.amount) || 0 : 0,
+                  due_date: fund?.due_on ?? "",
                 }));
               }}
             >
-              <option value="">Choose a fund</option>
-              {funds.map((fund) => (
+              <option value="">
+                {selectedStudent && !fundOptions.length
+                  ? "No fund left to charge — use Record Payment"
+                  : "Choose a fund"}
+              </option>
+              {fundOptions.map((fund) => (
                 <option key={fund.id} value={fund.id}>
                   {fund.name} — ₨ {fund.amount}
                 </option>
@@ -452,31 +518,37 @@ export function FeesManager() {
             </Select>
           </FormField>
         )}
-        <FormField label="Total amount (PKR)" required>
+
+        <FormField
+          label="Amount (PKR)"
+          required
+          hint={
+            invoicePayload.invoice_type === "fund"
+              ? "Filled from the fund amount. Change it only to charge this student a different amount."
+              : "Filled from the student's net monthly fee. Change it only to charge a different amount."
+          }
+        >
           <Input
             type="number"
             min={0}
-            value={invoicePayload.total_amount}
+            value={invoicePayload.total_amount || ""}
             placeholder="e.g. 2500"
             onChange={(e) => setInvoicePayload((p) => ({ ...p, total_amount: Number(e.target.value) || 0 }))}
           />
         </FormField>
-        <FormField label="Payment due date" required>
+        <FormField
+          label="Due date"
+          hint={
+            invoicePayload.invoice_type === "fund"
+              ? "Optional — taken from the fund's due date. This is the date payment is expected by."
+              : "Optional — defaults to the end of this month. This is the date payment is expected by."
+          }
+        >
           <Input
             type="date"
-            value={invoicePayload.due_date}
+            value={invoicePayload.due_date ?? ""}
             onChange={(e) => setInvoicePayload((p) => ({ ...p, due_date: e.target.value }))}
           />
-        </FormField>
-        <FormField label="Initial payment status" hint="Usually Unpaid when creating a new invoice.">
-          <Select
-            value={invoicePayload.status}
-            onChange={(e) => setInvoicePayload((p) => ({ ...p, status: e.target.value }))}
-          >
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partially paid</option>
-            <option value="paid">Paid in full</option>
-          </Select>
         </FormField>
       </FormModal>
 
