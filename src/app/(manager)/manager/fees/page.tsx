@@ -2,6 +2,6 @@
 
 import { FeesManager } from "@/components/fees/fees-manager";
 
-export default function SchoolAdminFeesPage() {
+export default function ManagerFeesPage() {
   return <FeesManager />;
 }

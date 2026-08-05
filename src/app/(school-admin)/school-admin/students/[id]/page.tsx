@@ -18,6 +18,7 @@ export default function SchoolAdminStudentDetailPage() {
       backHref="/school-admin/students"
       backLabel="Back to students"
       mode="full"
+      feesHref="/school-admin/fees"
     />
   );
 }

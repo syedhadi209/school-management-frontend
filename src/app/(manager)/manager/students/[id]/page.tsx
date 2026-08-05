@@ -18,6 +18,7 @@ export default function ManagerStudentDetailPage() {
       backHref="/manager/students"
       backLabel="Back to students"
       mode="full"
+      feesHref="/manager/fees"
     />
   );
 }

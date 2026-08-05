@@ -14,6 +14,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
         { href: "/manager/timetable", label: "Timetable", icon: "timetable" },
         { href: "/manager/attendance", label: "Attendance", icon: "attendance" },
         { href: "/manager/exams", label: "Exams", icon: "marks" },
+        { href: "/manager/funds", label: "Funds", icon: "funds" },
+        { href: "/manager/fees", label: "Fees", icon: "fees" },
         { href: "/manager/promotions", label: "Promotions", icon: "promotions" },
       ]}
     >

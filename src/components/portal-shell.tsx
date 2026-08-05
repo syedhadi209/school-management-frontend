@@ -18,6 +18,7 @@ import {
   TrendingUp,
   UserCheck,
   UserCog,
+  Wallet,
   Users,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ const iconRegistry: Record<string, typeof LayoutDashboard> = {
   managers: UserCog,
   admissions: TrendingUp,
   attendance: UserCheck,
+  funds: Wallet,
 };
 
 export interface NavLink {

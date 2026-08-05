@@ -47,6 +47,19 @@ export type StudentDetail = {
 };
 
 const studentHooks = createCrudHooks<StudentDetail, Record<string, unknown>>("/students/");
+const invoiceHooks = createCrudHooks<
+  {
+    id: number;
+    invoice_type: string;
+    fund_name?: string;
+    fee_structure_name?: string;
+    total_amount: string;
+    paid_amount: string;
+    balance?: number;
+    status: string;
+  },
+  Record<string, unknown>
+>("/invoices/");
 
 function formatMoney(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return "—";
@@ -88,16 +101,27 @@ export function StudentDetailView({
   backLabel = "Back to students",
   mode = "full",
   editHref,
+  feesHref,
 }: {
   studentId: number;
   backHref: string;
   backLabel?: string;
   mode?: "full" | "teacher";
   editHref?: string;
+  feesHref?: string;
 }) {
   const detailQuery = studentHooks.useDetail(studentId);
   const student = detailQuery.data;
   const showFees = mode === "full";
+  const invoicesQuery = invoiceHooks.useList(
+    { page: 1, page_size: 50, student: studentId },
+    { enabled: showFees && Number.isFinite(studentId) }
+  );
+  const openInvoices = (invoicesQuery.data?.results ?? []).filter(
+    (inv) => inv.status === "unpaid" || inv.status === "partial"
+  );
+  const openMonthly = openInvoices.filter((inv) => inv.invoice_type === "monthly_fee");
+  const openFunds = openInvoices.filter((inv) => inv.invoice_type === "fund");
 
   const displayName = student?.full_name || `${student?.first_name ?? ""} ${student?.last_name ?? ""}`.trim();
 
@@ -178,14 +202,49 @@ export function StudentDetailView({
           </DetailSection>
 
           {showFees ? (
-            <DetailSection title="Monthly fees">
-              <DetailGrid>
-                <DetailField label="Class monthly fee" value={formatMoney(student.monthly_fee_base)} />
-                <DetailField label="Discount" value={formatMoney(student.monthly_fee_discount)} />
-                <DetailField label="Net monthly fee" value={formatMoney(student.monthly_fee_effective)} />
-                <DetailField label="Discount note" value={student.fee_notes_display} className="sm:col-span-2" />
-              </DetailGrid>
-            </DetailSection>
+            <>
+              <DetailSection title="Monthly fees">
+                <DetailGrid>
+                  <DetailField label="Class monthly fee" value={formatMoney(student.monthly_fee_base)} />
+                  <DetailField label="Discount" value={formatMoney(student.monthly_fee_discount)} />
+                  <DetailField label="Net monthly fee" value={formatMoney(student.monthly_fee_effective)} />
+                  <DetailField label="Discount note" value={student.fee_notes_display} className="sm:col-span-2" />
+                  {openMonthly.length ? (
+                    <DetailField
+                      label="Open monthly invoices"
+                      value={openMonthly
+                        .map((inv) => `${formatMoney(inv.balance ?? 0)} (${inv.status})`)
+                        .join(" · ")}
+                      className="sm:col-span-2"
+                    />
+                  ) : null}
+                </DetailGrid>
+              </DetailSection>
+
+              <DetailSection title="Fund balances">
+                <DetailGrid>
+                  {openFunds.length ? (
+                    openFunds.map((inv) => (
+                      <DetailField
+                        key={inv.id}
+                        label={inv.fund_name || "Fund"}
+                        value={`${formatMoney(inv.balance ?? 0)} · ${inv.status}`}
+                      />
+                    ))
+                  ) : (
+                    <DetailField label="Open fund invoices" value="None" className="sm:col-span-2" />
+                  )}
+                  <div className="sm:col-span-2">
+                    <Link
+                      href={feesHref ?? "/school-admin/fees"}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1")}
+                    >
+                      Open Fees
+                    </Link>
+                  </div>
+                </DetailGrid>
+              </DetailSection>
+            </>
           ) : null}
 
           <DetailSection title="Family & guardian" className={showFees ? undefined : "lg:col-span-2"}>
