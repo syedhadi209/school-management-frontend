@@ -13,6 +13,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
         { href: "/manager/admissions", label: "Admissions", icon: "admissions" },
         { href: "/manager/timetable", label: "Timetable", icon: "timetable" },
         { href: "/manager/attendance", label: "Attendance", icon: "attendance" },
+        { href: "/manager/exams", label: "Exams", icon: "marks" },
         { href: "/manager/promotions", label: "Promotions", icon: "promotions" },
       ]}
     >

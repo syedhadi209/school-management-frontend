@@ -23,17 +23,31 @@ type ClassLevel = {
   is_board_class?: boolean;
   academic_year_name?: string;
   section_count?: number;
+  monthly_fee_amount?: string | number | null;
 };
 
 type ClassLevelPayload = {
   name: string;
   order: number;
   is_board_class: boolean;
+  monthly_fee_amount: string;
 };
 
 const levelHooks = createCrudHooks<ClassLevel, ClassLevelPayload>("/class-levels/");
 
-const emptyPayload: ClassLevelPayload = { name: "", order: 1, is_board_class: false };
+const emptyPayload: ClassLevelPayload = {
+  name: "",
+  order: 1,
+  is_board_class: false,
+  monthly_fee_amount: "",
+};
+
+function formatMoney(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return `₨ ${n.toLocaleString()}`;
+}
 
 export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
   const [page, setPage] = useState(1);
@@ -70,6 +84,10 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
       name: level.name,
       order: level.order,
       is_board_class: Boolean(level.is_board_class),
+      monthly_fee_amount:
+        level.monthly_fee_amount === null || level.monthly_fee_amount === undefined
+          ? ""
+          : String(level.monthly_fee_amount),
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -80,13 +98,27 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
       setFormError("Enter a class name, for example Class 1 or Nursery.");
       return;
     }
+    if (payload.monthly_fee_amount.trim() !== "") {
+      const fee = Number(payload.monthly_fee_amount);
+      if (!Number.isFinite(fee) || fee < 0) {
+        setFormError("Enter a valid monthly fee amount (0 or more).");
+        return;
+      }
+    }
 
     setFormError(null);
+    const body: Record<string, unknown> = {
+      name: payload.name.trim(),
+      order: payload.order,
+      is_board_class: payload.is_board_class,
+      monthly_fee_amount:
+        payload.monthly_fee_amount.trim() === "" ? null : Number(payload.monthly_fee_amount),
+    };
     try {
       if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, payload });
+        await updateMutation.mutateAsync({ id: editing.id, payload: body as Partial<ClassLevelPayload> });
       } else {
-        await createMutation.mutateAsync(payload);
+        await createMutation.mutateAsync(body as ClassLevelPayload);
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -103,8 +135,8 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        A class is the academic year group, such as Class 1 or Class 10. Mark Classes 8, 9, and 10 as board examination
-        classes when your school sits board exams.
+        A class is the academic year group, such as Class 1 or Class 10. Set its monthly tuition here — students in any
+        section of that class inherit it (you can still discount per student).
         {sectionsHref ? (
           <>
             {" "}
@@ -151,6 +183,7 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
             <TableRow>
               <TableHead>Class</TableHead>
               <TableHead>Board</TableHead>
+              <TableHead>Monthly fee</TableHead>
               <TableHead>Display Order</TableHead>
               <TableHead>Sections</TableHead>
               <TableHead>Academic Year</TableHead>
@@ -170,6 +203,7 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
                     <span className="text-muted-foreground">Regular</span>
                   )}
                 </TableCell>
+                <TableCell className="tabular-nums">{formatMoney(level.monthly_fee_amount)}</TableCell>
                 <TableCell>{level.order}</TableCell>
                 <TableCell>{level.section_count ?? 0}</TableCell>
                 <TableCell>{level.academic_year_name || "-"}</TableCell>
@@ -195,7 +229,7 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
             ))}
             {levels.length === 0 && !listQuery.isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   No classes yet. Create Class 1 first, then add sections A and B for it.
                 </TableCell>
               </TableRow>
@@ -215,7 +249,7 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         title={editing ? "Edit Class" : "Create Class"}
-        description="Name the class, set its order, and decide whether it sits board examinations."
+        description="Name the class, set monthly tuition, and decide whether it sits board examinations."
         submitLabel={editing ? "Save Changes" : "Create Class"}
         loading={createMutation.isPending || updateMutation.isPending}
         error={formError}
@@ -244,6 +278,19 @@ export function ClassesManager({ sectionsHref }: { sectionsHref?: string }) {
               value={payload.order}
               placeholder="e.g. 1"
               onChange={(e) => setPayload((p) => ({ ...p, order: Number(e.target.value) || 0 }))}
+            />
+          </FormField>
+          <FormField
+            label="Monthly fee (PKR)"
+            hint="Base tuition for every student in this class. Leave blank to set later. Per-student discounts are set when adding a student."
+            className="sm:col-span-2"
+          >
+            <Input
+              type="number"
+              min={0}
+              value={payload.monthly_fee_amount}
+              placeholder="e.g. 3000"
+              onChange={(e) => setPayload((p) => ({ ...p, monthly_fee_amount: e.target.value }))}
             />
           </FormField>
           <FormField

@@ -21,7 +21,6 @@ type FeeStructure = {
   class_level: number;
   class_level_name?: string;
 };
-type FeeStructurePayload = { name: string; amount: number; class_level: number | null };
 
 type Invoice = {
   id: number;
@@ -45,16 +44,19 @@ type InvoicePayload = {
 };
 
 type PaymentPayload = { invoice: number | null; amount: number; method: string };
-type Student = { id: number; full_name?: string; first_name: string; last_name: string };
-type ClassLevel = { id: number; name: string };
+type Student = {
+  id: number;
+  full_name?: string;
+  first_name: string;
+  last_name: string;
+  monthly_fee_effective?: string | number | null;
+};
 
-const feeHooks = createCrudHooks<FeeStructure, FeeStructurePayload>("/fee-structures/");
+const feeHooks = createCrudHooks<FeeStructure, Record<string, unknown>>("/fee-structures/");
 const invoiceHooks = createCrudHooks<Invoice, InvoicePayload>("/invoices/");
 const paymentHooks = createCrudHooks<{ id: number }, PaymentPayload>("/payments/");
 const studentHooks = createCrudHooks<Student, Record<string, unknown>>("/students/");
-const classLevelHooks = createCrudHooks<ClassLevel, Record<string, unknown>>("/class-levels/");
 
-const emptyFee: FeeStructurePayload = { name: "", amount: 0, class_level: null };
 const emptyInvoice: InvoicePayload = {
   student: null,
   fee_structure: null,
@@ -65,59 +67,32 @@ const emptyInvoice: InvoicePayload = {
 };
 
 export default function SchoolAdminFeesPage() {
-  const [feePage, setFeePage] = useState(1);
   const [invoicePage, setInvoicePage] = useState(1);
   const [search, setSearch] = useState("");
 
-  const [feeModalOpen, setFeeModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
-  const [feePayload, setFeePayload] = useState<FeeStructurePayload>(emptyFee);
   const [invoicePayload, setInvoicePayload] = useState<InvoicePayload>(emptyInvoice);
-  const [paymentPayload, setPaymentPayload] = useState<PaymentPayload>({ invoice: null, amount: 0, method: "cash" });
+  const [paymentPayload, setPaymentPayload] = useState<PaymentPayload>({
+    invoice: null,
+    amount: 0,
+    method: "cash",
+  });
 
-  const [feeError, setFeeError] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const feeQuery = feeHooks.useList({ page: feePage, search });
+  const feeQuery = feeHooks.useList({ page: 1, page_size: 200 });
   const invoiceQuery = invoiceHooks.useList({ page: invoicePage, search });
   const studentQuery = studentHooks.useList({ page: 1, page_size: 200 });
-  const classLevelQuery = classLevelHooks.useList({ page: 1, page_size: 200 });
 
-  const createFee = feeHooks.useCreate({ successMessage: "Fee structure created." });
   const createInvoice = invoiceHooks.useCreate({ successMessage: "Invoice created." });
   const createPayment = paymentHooks.useCreate({ successMessage: "Payment recorded." });
 
   const feeStructures = feeQuery.data?.results ?? [];
   const invoices = invoiceQuery.data?.results ?? [];
   const students = studentQuery.data?.results ?? [];
-  const levels = classLevelQuery.data?.results ?? [];
-
-  async function submitFee() {
-    if (!feePayload.name.trim()) {
-      setFeeError("Enter a fee name, for example Term 1 Tuition.");
-      return;
-    }
-    if (!feePayload.class_level) {
-      setFeeError(
-        levels.length === 0
-          ? "This school has no classes yet. Create a class first, then add fee structures."
-          : "Choose the class this fee applies to.",
-      );
-      return;
-    }
-
-    setFeeError(null);
-    try {
-      await createFee.mutateAsync(feePayload);
-      setFeeModalOpen(false);
-      setFeePayload(emptyFee);
-    } catch (error) {
-      setFeeError(extractApiErrorMessage(error, "Could not save this fee structure. Please try again."));
-    }
-  }
 
   async function submitInvoice() {
     if (!invoicePayload.student) {
@@ -125,7 +100,7 @@ export default function SchoolAdminFeesPage() {
       return;
     }
     if (!invoicePayload.fee_structure) {
-      setInvoiceError("Choose which fee structure this invoice charges.");
+      setInvoiceError("Choose which class tuition this invoice charges.");
       return;
     }
 
@@ -161,44 +136,10 @@ export default function SchoolAdminFeesPage() {
 
   return (
     <div className="space-y-6">
-      <DataTableShell
-        title="Fee Structures"
-        count={feeQuery.data?.count ?? 0}
-        searchValue={search}
-        searchPlaceholder="Search fee structures"
-        onSearchChange={setSearch}
-        onCreate={() => {
-          setFeeError(null);
-          setFeeModalOpen(true);
-        }}
-        createLabel="Add Structure"
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead>Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {feeStructures.map((fee) => (
-              <TableRow key={fee.id}>
-                <TableCell className="font-medium">{fee.name}</TableCell>
-                <TableCell>{fee.class_level_name || "-"}</TableCell>
-                <TableCell>₨ {fee.amount}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          page={feePage}
-          total={feeQuery.data?.count ?? 0}
-          hasNext={Boolean(feeQuery.data?.next)}
-          hasPrevious={Boolean(feeQuery.data?.previous)}
-          onPageChange={setFeePage}
-        />
-      </DataTableShell>
+      <p className="text-sm text-muted-foreground">
+        Monthly tuition is set when you create or edit a class under Classes. This page is for invoices and
+        payments.
+      </p>
 
       <DataTableShell
         title="Invoices"
@@ -262,55 +203,32 @@ export default function SchoolAdminFeesPage() {
       </DataTableShell>
 
       <FormModal
-        open={feeModalOpen}
-        onOpenChange={setFeeModalOpen}
-        title="Add Fee Structure"
-        description="Define a reusable fee amount for a specific class, such as Class 1."
-        submitLabel="Create"
-        loading={createFee.isPending}
-        error={feeError}
-        onSubmit={submitFee}
-      >
-        <FormField label="Fee name" hint="A recognizable name shown on invoices." required>
-          <Input
-            value={feePayload.name}
-            placeholder="e.g. Monthly Tuition"
-            onChange={(e) => setFeePayload((p) => ({ ...p, name: e.target.value }))}
-          />
-        </FormField>
-        <FormField label="Amount (PKR)" hint="The amount charged to each student for this fee." required>
-          <Input
-            type="number"
-            min={0}
-            value={feePayload.amount}
-            placeholder="e.g. 12000"
-            onChange={(e) => setFeePayload((p) => ({ ...p, amount: Number(e.target.value) || 0 }))}
-          />
-        </FormField>
-        <FormField label="Class" hint="This fee structure will be available for this class." required>
-          <Select value={feePayload.class_level ?? ""} onChange={(e) => setFeePayload((p) => ({ ...p, class_level: Number(e.target.value) || null }))}>
-            <option value="">Choose a class</option>
-            {levels.map((level) => (
-              <option key={level.id} value={level.id}>
-                {level.name}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-      </FormModal>
-
-      <FormModal
         open={invoiceModalOpen}
         onOpenChange={setInvoiceModalOpen}
         title="Create Invoice"
-        description="Create a fee invoice for one student and set its due date."
+        description="Create a fee invoice for one student. Prefer the student’s discounted monthly fee when set."
         submitLabel="Create"
         loading={createInvoice.isPending}
         error={invoiceError}
         onSubmit={submitInvoice}
       >
         <FormField label="Student" required>
-          <Select value={invoicePayload.student ?? ""} onChange={(e) => setInvoicePayload((p) => ({ ...p, student: Number(e.target.value) || null }))}>
+          <Select
+            value={invoicePayload.student ?? ""}
+            onChange={(e) => {
+              const studentId = Number(e.target.value) || null;
+              const student = students.find((item) => item.id === studentId);
+              const effective = student?.monthly_fee_effective;
+              setInvoicePayload((p) => ({
+                ...p,
+                student: studentId,
+                total_amount:
+                  effective !== null && effective !== undefined
+                    ? Number(effective) || p.total_amount
+                    : p.total_amount,
+              }));
+            }}
+          >
             <option value="">Choose a student</option>
             {students.map((student) => (
               <option key={student.id} value={student.id}>
@@ -319,22 +237,38 @@ export default function SchoolAdminFeesPage() {
             ))}
           </Select>
         </FormField>
-        <FormField label="Fee structure" hint="Select the type of charge for this invoice." required>
-          <Select value={invoicePayload.fee_structure ?? ""} onChange={(e) => setInvoicePayload((p) => ({ ...p, fee_structure: Number(e.target.value) || null }))}>
-            <option value="">Choose a fee structure</option>
+        <FormField label="Class tuition" hint="Pick the class monthly tuition this invoice is based on." required>
+          <Select
+            value={invoicePayload.fee_structure ?? ""}
+            onChange={(e) => {
+              const feeId = Number(e.target.value) || null;
+              const fee = feeStructures.find((item) => item.id === feeId);
+              setInvoicePayload((p) => ({
+                ...p,
+                fee_structure: feeId,
+                total_amount:
+                  p.total_amount > 0
+                    ? p.total_amount
+                    : fee
+                      ? Number(fee.amount) || 0
+                      : 0,
+              }));
+            }}
+          >
+            <option value="">Choose class tuition</option>
             {feeStructures.map((fee) => (
               <option key={fee.id} value={fee.id}>
-                {fee.name}
+                {fee.class_level_name || fee.name} — ₨ {fee.amount}
               </option>
             ))}
           </Select>
         </FormField>
-        <FormField label="Total amount (PKR)" hint="The full amount the student must pay." required>
+        <FormField label="Total amount (PKR)" hint="Defaults to the student’s net monthly fee when available." required>
           <Input
             type="number"
             min={0}
             value={invoicePayload.total_amount}
-            placeholder="e.g. 12000"
+            placeholder="e.g. 2500"
             onChange={(e) => setInvoicePayload((p) => ({ ...p, total_amount: Number(e.target.value) || 0 }))}
           />
         </FormField>
@@ -346,7 +280,10 @@ export default function SchoolAdminFeesPage() {
           />
         </FormField>
         <FormField label="Initial payment status" hint="Usually Unpaid when creating a new invoice.">
-          <Select value={invoicePayload.status} onChange={(e) => setInvoicePayload((p) => ({ ...p, status: e.target.value }))}>
+          <Select
+            value={invoicePayload.status}
+            onChange={(e) => setInvoicePayload((p) => ({ ...p, status: e.target.value }))}
+          >
             <option value="unpaid">Unpaid</option>
             <option value="partial">Partially paid</option>
             <option value="paid">Paid in full</option>
@@ -365,7 +302,12 @@ export default function SchoolAdminFeesPage() {
         onSubmit={submitPayment}
       >
         <FormField label="Invoice" hint="Choose the invoice this payment belongs to." required>
-          <Select value={paymentPayload.invoice ?? ""} onChange={(e) => setPaymentPayload((p) => ({ ...p, invoice: Number(e.target.value) || null }))}>
+          <Select
+            value={paymentPayload.invoice ?? ""}
+            onChange={(e) =>
+              setPaymentPayload((p) => ({ ...p, invoice: Number(e.target.value) || null }))
+            }
+          >
             <option value="">Choose an invoice</option>
             {invoices.map((invoice) => (
               <option key={invoice.id} value={invoice.id}>
@@ -384,7 +326,10 @@ export default function SchoolAdminFeesPage() {
           />
         </FormField>
         <FormField label="Payment method" required>
-          <Select value={paymentPayload.method} onChange={(e) => setPaymentPayload((p) => ({ ...p, method: e.target.value }))}>
+          <Select
+            value={paymentPayload.method}
+            onChange={(e) => setPaymentPayload((p) => ({ ...p, method: e.target.value }))}
+          >
             <option value="cash">Cash</option>
             <option value="bank_transfer">Bank transfer</option>
             <option value="card">Card</option>
@@ -394,4 +339,3 @@ export default function SchoolAdminFeesPage() {
     </div>
   );
 }
-

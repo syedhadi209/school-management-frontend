@@ -10,6 +10,7 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
         { href: "/parent", label: "Dashboard", icon: "dashboard" },
         { href: "/parent/timetable", label: "Timetable", icon: "timetable" },
         { href: "/parent/attendance", label: "Attendance", icon: "attendance" },
+        { href: "/parent/results", label: "Results", icon: "marks" },
         { href: "/parent/invoices", label: "Invoices", icon: "invoices" },
       ]}
     >

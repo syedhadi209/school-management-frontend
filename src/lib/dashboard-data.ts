@@ -37,7 +37,7 @@ export const schoolAdminDashboard: DashboardData = {
   quickActions: [
     { icon: Users, tint: "bg-blue-100 text-blue-600", title: "Register Student", subtitle: "Add new student", href: "/school-admin/students" },
     { icon: GraduationCap, tint: "bg-emerald-100 text-emerald-600", title: "Create Class", subtitle: "Set up Class 1, Class 2…", href: "/school-admin/classes" },
-    { icon: UserCheck, tint: "bg-orange-100 text-orange-600", title: "Add Attendance", subtitle: "Record class attendance", href: "/school-admin/attendance" },
+    { icon: FileText, tint: "bg-orange-100 text-orange-600", title: "Manage Exams", subtitle: "Midterms, finals & publish", href: "/school-admin/exams" },
     { icon: CreditCard, tint: "bg-purple-100 text-purple-600", title: "Generate Invoice", subtitle: "Create fee invoice", href: "/school-admin/fees" },
   ],
 };
@@ -56,6 +56,7 @@ export const managerDashboard: DashboardData = {
   ],
   quickActions: [
     { icon: CalendarClock, tint: "bg-blue-100 text-blue-600", title: "Manage Timetable", subtitle: "View or edit schedules", href: "/manager/timetable" },
+    { icon: FileText, tint: "bg-orange-100 text-orange-600", title: "Manage Exams", subtitle: "Midterms, finals & publish", href: "/manager/exams" },
     { icon: TrendingUp, tint: "bg-emerald-100 text-emerald-600", title: "Process Promotions", subtitle: "Review pending promotions", href: "/manager/promotions" },
   ],
 };
@@ -91,7 +92,8 @@ export const parentDashboard: DashboardData = {
     { icon: UserCheck, tint: "bg-emerald-100 text-emerald-600", title: "Attendance Notice", subtitle: "Ali — absent on Mon, Mar 4", time: "3 days ago" },
   ],
   quickActions: [
-    { icon: CreditCard, tint: "bg-blue-100 text-blue-600", title: "View Invoices", subtitle: "Check fee status", href: "/parent/invoices" },
+    { icon: FileText, tint: "bg-blue-100 text-blue-600", title: "View Results", subtitle: "Published exam marks", href: "/parent/results" },
+    { icon: CreditCard, tint: "bg-amber-100 text-amber-600", title: "View Invoices", subtitle: "Check fee status", href: "/parent/invoices" },
   ],
 };
 
