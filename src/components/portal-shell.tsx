@@ -7,6 +7,8 @@ import {
   Bell,
   Building2,
   CalendarClock,
+  ChevronDown,
+  CircleDollarSign,
   CreditCard,
   FileText,
   GraduationCap,
@@ -18,6 +20,7 @@ import {
   TrendingUp,
   UserCheck,
   UserCog,
+  UsersRound,
   Wallet,
   Users,
 } from "lucide-react";
@@ -49,6 +52,8 @@ const iconRegistry: Record<string, typeof LayoutDashboard> = {
   admissions: TrendingUp,
   attendance: UserCheck,
   funds: Wallet,
+  finance: CircleDollarSign,
+  faculty: UsersRound,
 };
 
 export interface NavLink {
@@ -57,25 +62,46 @@ export interface NavLink {
   icon: string;
 }
 
+export interface NavSection {
+  label?: string;
+  /** When set alongside a label, the section renders as a collapsible submenu. */
+  icon?: string;
+  items: NavLink[];
+}
+
 interface PortalShellProps {
   title: string;
   heading?: string;
   subheading?: string;
-  links: NavLink[];
+  links?: NavLink[];
+  sections?: NavSection[];
   children: ReactNode;
+}
+
+function flattenLinks(sections: NavSection[]): NavLink[] {
+  return sections.flatMap((section) => section.items);
+}
+
+function isLinkActive(link: NavLink, pathname: string, allLinks: NavLink[]) {
+  if (link.href === pathname) return true;
+  const rootHref = allLinks[0]?.href;
+  return pathname.startsWith(link.href) && link.href !== rootHref;
 }
 
 function SidebarNav({
   title,
-  links,
+  sections,
   pathname,
   onNavigate,
 }: {
   title: string;
-  links: NavLink[];
+  sections: NavSection[];
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const allLinks = flattenLinks(sections);
+  const [toggledGroups, setToggledGroups] = useState<Record<string, boolean>>({});
+
   return (
     <div className="flex h-full flex-col bg-white">
       <div className="p-5">
@@ -90,29 +116,94 @@ function SidebarNav({
         </Link>
       </div>
 
-      <nav className="flex-1 px-3 pb-4">
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
         <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-[#B7B7B7]">{title}</p>
-        {links.map((link) => {
-          const Icon = iconRegistry[link.icon] ?? LayoutDashboard;
-          const isActive =
-            link.href === pathname ||
-            (pathname.startsWith(link.href) && link.href !== links[0]?.href);
+        {sections.map((section, sectionIndex) => {
+          const sectionKey = section.label ?? `section-${sectionIndex}`;
+
+          if (section.label && section.icon) {
+            const GroupIcon = iconRegistry[section.icon] ?? LayoutDashboard;
+            const hasActiveChild = section.items.some((link) => isLinkActive(link, pathname, allLinks));
+            const isOpen = toggledGroups[sectionKey] ?? hasActiveChild;
+
+            return (
+              <div key={sectionKey} className="mb-1">
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={() =>
+                    setToggledGroups((previous) => ({ ...previous, [sectionKey]: !isOpen }))
+                  }
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-xs transition-colors",
+                    hasActiveChild
+                      ? "bg-[#C4EAFB] font-bold text-[#181818]"
+                      : "font-medium text-[#6B7280] hover:bg-slate-50 hover:text-slate-900"
+                  )}
+                >
+                  <GroupIcon className="size-[18px]" />
+                  <span className="flex-1 text-left">{section.label}</span>
+                  <ChevronDown
+                    className={cn("size-3.5 transition-transform", isOpen && "rotate-180")}
+                  />
+                </button>
+
+                {isOpen ? (
+                  <div className="mt-1">
+                    {section.items.map((link) => {
+                      const isActive = isLinkActive(link, pathname, allLinks);
+
+                      return (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={onNavigate}
+                          className={cn(
+                            "mb-1 flex items-center rounded-md py-2 pl-11 pr-3 text-xs transition-colors",
+                            isActive
+                              ? "font-semibold text-[#181818]"
+                              : "font-medium text-[#6B7280] hover:bg-slate-50 hover:text-slate-900"
+                          )}
+                        >
+                          {link.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
 
           return (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onNavigate}
-              className={cn(
-                "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-xs transition-colors",
-                isActive
-                  ? "bg-[#C4EAFB] font-bold text-[#181818]"
-                  : "font-medium text-[#B7B7B7] hover:bg-slate-50 hover:text-slate-900"
-              )}
-            >
-              <Icon className="size-[18px]" />
-              {link.label}
-            </Link>
+            <div key={sectionKey} className={cn(sectionIndex > 0 && "mt-3")}>
+              {section.label ? (
+                <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-[#B7B7B7]">
+                  {section.label}
+                </p>
+              ) : null}
+              {section.items.map((link) => {
+                const Icon = iconRegistry[link.icon] ?? LayoutDashboard;
+                const isActive = isLinkActive(link, pathname, allLinks);
+
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-xs transition-colors",
+                      isActive
+                        ? "bg-[#C4EAFB] font-bold text-[#181818]"
+                        : "font-medium text-[#6B7280] hover:bg-slate-50 hover:text-slate-900"
+                    )}
+                  >
+                    <Icon className="size-[18px]" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
@@ -124,17 +215,19 @@ export function PortalShell({
   title,
   heading,
   subheading,
-  links,
+  links = [],
+  sections,
   children,
 }: PortalShellProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const resolvedSections = sections ?? [{ items: links }];
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 border-r bg-white lg:block">
-        <SidebarNav title={title} links={links} pathname={pathname} />
+        <SidebarNav title={title} sections={resolvedSections} pathname={pathname} />
       </aside>
 
       <div className="flex flex-1 flex-col">
@@ -150,7 +243,7 @@ export function PortalShell({
             <SheetContent side="left" className="w-64 bg-white p-0">
               <SidebarNav
                 title={title}
-                links={links}
+                sections={resolvedSections}
                 pathname={pathname}
                 onNavigate={() => setDrawerOpen(false)}
               />
