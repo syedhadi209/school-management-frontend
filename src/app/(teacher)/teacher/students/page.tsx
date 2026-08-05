@@ -3,5 +3,5 @@
 import { StudentsManager } from "@/components/students/students-manager";
 
 export default function TeacherStudentsPage() {
-  return <StudentsManager mode="boardRollOnly" />;
+  return <StudentsManager mode="boardRollOnly" detailBasePath="/teacher/students" />;
 }

@@ -181,6 +181,17 @@ export function createCrudHooks<TItem, TInput extends Record<string, unknown>>(r
     });
   }
 
+  function useDetail(id: number | string | null | undefined, options?: { enabled?: boolean }) {
+    return useQuery({
+      queryKey: [normalizedPath, id],
+      queryFn: async () => {
+        const { data } = await api.get<TItem>(`${normalizedPath}${id}/`);
+        return data;
+      },
+      enabled: (options?.enabled ?? true) && id !== null && id !== undefined && id !== "",
+    });
+  }
+
   function useCreate(options?: { successMessage?: string }) {
     const queryClient = useQueryClient();
     return useMutation({
@@ -205,8 +216,9 @@ export function createCrudHooks<TItem, TInput extends Record<string, unknown>>(r
         const { data } = await api.patch<TItem>(`${normalizedPath}${id}/`, toRequestBody(payload));
         return data;
       },
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
         queryClient.invalidateQueries({ queryKey: [normalizedPath] });
+        queryClient.invalidateQueries({ queryKey: [normalizedPath, variables.id] });
         toast.success(options?.successMessage ?? "Updated successfully.");
       },
       onError: (error) => {
@@ -233,6 +245,7 @@ export function createCrudHooks<TItem, TInput extends Record<string, unknown>>(r
 
   return {
     useList,
+    useDetail,
     useCreate,
     useUpdate,
     useDelete,

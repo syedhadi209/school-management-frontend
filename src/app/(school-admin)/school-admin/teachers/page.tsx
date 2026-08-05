@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { createCrudHooks, extractApiErrorMessage } from "@/lib/crud";
@@ -107,6 +108,7 @@ function formatShift(start?: string | null, end?: string | null) {
 }
 
 export default function SchoolAdminTeachersPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<TeacherProfile | null>(null);
@@ -264,7 +266,11 @@ export default function SchoolAdminTeachersPage() {
           </TableHeader>
           <TableBody>
             {teachers.map((teacher) => (
-              <TableRow key={teacher.id}>
+              <TableRow
+                key={teacher.id}
+                className="cursor-pointer"
+                onClick={() => router.push(`/school-admin/teachers/${teacher.id}`)}
+              >
                 <TableCell>
                   <ProfileAvatar
                     size="sm"
@@ -297,7 +303,10 @@ export default function SchoolAdminTeachersPage() {
                 </TableCell>
                 <TableCell>{formatSalary(teacher.monthly_salary)}</TableCell>
                 <TableCell>{formatShift(teacher.shift_start_time, teacher.shift_end_time)}</TableCell>
-                <TableCell>
+                <TableCell
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"

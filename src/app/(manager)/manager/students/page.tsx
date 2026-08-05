@@ -3,5 +3,5 @@
 import { StudentsManager } from "@/components/students/students-manager";
 
 export default function ManagerStudentsPage() {
-  return <StudentsManager mode="full" />;
+  return <StudentsManager mode="full" detailBasePath="/manager/students" />;
 }

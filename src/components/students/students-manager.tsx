@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -203,10 +204,14 @@ function studentToPayload(student: Student): StudentPayload {
 
 export function StudentsManager({
   mode = "full",
+  detailBasePath,
 }: {
   mode?: "full" | "boardRollOnly";
+  /** e.g. /school-admin/students — enables row detail links */
+  detailBasePath?: string;
 }) {
   const isTeacherMode = mode === "boardRollOnly";
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("active");
@@ -645,7 +650,15 @@ export function StudentsManager({
           </TableHeader>
           <TableBody>
             {students.map((student) => (
-              <TableRow key={student.id}>
+              <TableRow
+                key={student.id}
+                className={detailBasePath ? "cursor-pointer" : undefined}
+                onClick={
+                  detailBasePath
+                    ? () => router.push(`${detailBasePath}/${student.id}`)
+                    : undefined
+                }
+              >
                 <TableCell>
                   <ProfileAvatar
                     size="sm"
@@ -686,7 +699,10 @@ export function StudentsManager({
                     )}
                   </TableCell>
                 )}
-                <TableCell>
+                <TableCell
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
